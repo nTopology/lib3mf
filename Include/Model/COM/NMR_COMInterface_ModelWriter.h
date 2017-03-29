@@ -42,14 +42,29 @@ namespace NMR {
 	class CCOMModelWriter : public ILib3MFModelWriter {
 	protected:
 		PModelWriter m_pModelWriter;
+
+		nfError m_nErrorCode;
+		std::string m_sErrorMessage;
+
+		LIB3MFRESULT handleNMRException(_In_ CNMRException * pException);
+		LIB3MFRESULT handleGenericException();
+		LIB3MFRESULT handleSuccess();
+
 	public:
 		LIB3MFINTERFACE_DECL(ILib3MFModelWriter)
 
+		LIB3MFMETHOD(GetLastError) (_Out_ DWORD * pErrorCode, _Outptr_opt_ LPCSTR * pErrorMessage);
+
 		LIB3MFMETHOD(WriteToFile) (_In_z_ LPCWSTR pwszFilename);
-#ifndef __GCC
+		LIB3MFMETHOD(WriteToFileUTF8) (_In_z_ LPCSTR pwszFilename);
+
+#ifndef __GNUC__
 		LIB3MFMETHOD(WriteToStream) (_In_ IStream * pStream);
 #endif
 
+		LIB3MFMETHOD(WriteToCallback) (_In_ void * pWriteCallback, _In_opt_ void * pSeekCallback, _In_opt_ void * pUserData);
+
+		CCOMModelWriter();
 		void setWriter(_In_ PModelWriter pModelWriter);
 	};
 

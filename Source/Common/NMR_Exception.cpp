@@ -28,12 +28,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Abstract:
 
 NMR_Exception.cpp implements the generic Exception Class.
-Each exception is identified via a global ErrorCode 
+Each exception is identified via a global ErrorCode
 (to be looked up in NMR_ErrorConst.h)
 
 --*/
 
-#include "Common/NMR_Exception.h" 
+#include "Common/NMR_Exception.h"
 #include <math.h>
 
 namespace NMR {
@@ -80,6 +80,39 @@ namespace NMR {
 		case NMR_ERROR_INVALIDBUFFERSIZE: return "Invalid buffer size";
 		case NMR_ERROR_INSUFFICIENTBUFFERSIZE: return "Insufficient buffer size";
 		case NMR_ERROR_INVALIDCOMPONENT: return "No component has been given";
+		case NMR_ERROR_INVALIDHEXVALUE: return "Invalid hex value";
+		case NMR_ERROR_RANGEERROR: return "Range error";
+		case NMR_ERROR_INVALIDPOINTER: return "Passed invalid null pointer";
+        case NMR_ERROR_XMLELEMENTNOTOPEN: return "XML Element not open";
+        case NMR_ERROR_INVALIDXMLNAME: return "Invalid XML Name";
+		case NMR_ERROR_INVALIDINTEGERTRIPLET: return "Invalid Integer Triplet String";
+		case NMR_ERROR_INVALIDZIPENTRYKEY: return "Invalid ZIP Entry key";
+		case NMR_ERRORINVALIDZIPNAME: return "Invalid ZIP Name";
+		case NMR_ERROR_ZIPSTREAMCANNOTSEEK: return "ZIP Stream cannot seek";
+		case NMR_ERROR_COULDNOTCONVERTTOUTF8: return "Could not convert to UTF8";
+		case NMR_ERROR_COULDNOTCONVERTTOUTF16: return "Could not convert to UTF16";
+		case NMR_ERROR_ZIPENTRYOVERFLOW: return "ZIP Entry overflow";
+		case NMR_ERROR_INVALIDZIPENTRY: return "Invalid ZIP Entry";
+		case NMR_ERROR_EXPORTSTREAMNOTEMPTY: return "Export Stream not empty";
+		case NMR_ERROR_DEFLATEINITFAILED: return "Deflate init failed";
+		case NMR_ERROR_ZIPALREADYFINISHED: return "Zip already finished";
+		case NMR_ERROR_COULDNOTDEFLATE: return "Could not deflate data";
+		case NMR_ERROR_XMLWRITER_CLOSENODEERROR: return "Could not close written XML node";
+		case NMR_ERROR_INVALIDOPCPARTURI: return "Invalid OPC Part URI";
+		case NMR_ERROR_COULDNOTGETSTREAMPOSITION: return "Could not get stream position";
+		case NMR_ERROR_COULDNOTREADZIPFILE: return "Could not read ZIP file";
+		case NMR_ERROR_COULDNOTSEEKINZIP: return "Could not seek in ZIP file";
+		case NMR_ERROR_COULDNOTSTATZIPENTRY: return "Could not stat ZIP entry";
+		case NMR_ERROR_COULDNOTOPENZIPENTRY: return "Could not open ZIP entry";
+		case NMR_ERROR_INVALIDXMLDEPTH: return "Invalid XML Depth";
+		case NMR_ERROR_XMLELEMENTNOTEMPTY: return "XML Element not empty";
+		case NMR_ERROR_COULDNOTINITITALIZECOM: return "Could not initialize COM";
+		case NMR_ERROR_CALLBACKSTREAMCANNOTSEEK: return "Callback stream cannot seek";
+		case NMR_ERROR_COULDNOTWRITETOCALLBACKSTREAM: return "Could not write to callback stream";
+				
+		// Unhandled exception
+		case NMR_ERROR_GENERICEXCEPTION: return NMR_GENERICEXCEPTIONSTRING;
+
 
 		// Core framework error codes (0x2XXX)
 		case NMR_ERROR_NOPROGRESSINTERVAL: return "No Progress Interval has been specified in the progress handler";
@@ -118,7 +151,7 @@ namespace NMR {
 		case NMR_ERROR_NOMESHINFORMATIONCONTAINER: return "No Mesh Information Container has been assigned";
 		case NMR_ERROR_DISCRETEMERGEERROR: return "Internal Mesh Merge Error because of corrupt mesh structure";
 		case NMR_ERROR_DISCRETEEDGELENGTHVIOLATION: return "Discrete Edges may only have a max length of 30000.";
-		case NMR_ERROR_OCTTREE_OUTOFBOUNDS: return "OctTree Node is out of the OctTree Structure"; 
+		case NMR_ERROR_OCTTREE_OUTOFBOUNDS: return "OctTree Node is out of the OctTree Structure";
 		case NMR_ERROR_COULDNOTDELETENODE: return "Could not delete mesh node, because it still had some edges connected to it";
 		case NMR_ERROR_INVALIDINFORMATIONTYPE: return "Mesh Information has not been found";
 		case NMR_ERROR_FACESARENOTIDENTICAL: return "Mesh Information could not be copied";
@@ -140,6 +173,7 @@ namespace NMR {
 		case NMR_ERROR_DUPLICATETILESTYLEW: return "Texture tilestyle W is already existing";
 		case NMR_ERROR_DUPLICATECOLORID: return "Color ID is already existing";
 		case NMR_ERROR_INVALIDMESHINFORMATIONDATA: return "Mesh Information Block was not assigned";
+
 
 		// Model error codes (0x8XXX)
 		case NMR_ERROR_OPCREADFAILED: return "3MF Loading - OPC could not be loaded";
@@ -165,7 +199,7 @@ namespace NMR {
 		case NMR_ERROR_COULDNOTSEEKMODELSTREAM: return "Could not seek in XML Model Stream";
 		case NMR_ERROR_SETXMLPROPERTIESFAILED: return "Could not set XML reader properties";
 		case NMR_ERROR_READXMLNODEFAILED: return "Could not read XML node";
-		case NMR_ERROR_COULDNOTGETQUALIFIEDXMLNAME: return "Could not retrieve qualified xml node name";
+		case NMR_ERROR_COULDNOTGETLOCALXMLNAME: return "Could not retrieve local xml node name";
 		case NMR_ERROR_COULDPARSEXMLCONTENT: return "Could not parse XML Node content";
 		case NMR_ERROR_COULDNOTGETXMLTEXT: return "Could not get XML Node value";
 		case NMR_ERROR_COULDNOTGETXMLATTRIBUTES: return "Could not retrieve XML Node attributes";
@@ -231,6 +265,63 @@ namespace NMR {
 		case NMR_ERROR_INVALIDMETADATA: return "Invalid Model Metadata";
 		case NMR_ERROR_INVALIDMODELCOMPONENT: return "Invalid Model Component";
 		case NMR_ERROR_INVALIDMODELOBJECTTYPE: return "Invalid Model Object Type";
+		case NMR_ERROR_MISSINGMODELRESOURCEID: return "Missing Model Resource ID";
+		case NMR_ERROR_DUPLICATERESOURCEID: return "Duplicate Resource ID";
+		case NMR_ERROR_COULDNOTWRITEXMLCONTENT: return "Could not write XML Content";
+		case NMR_ERROR_COULDNOTGETNAMESPACE: return "Could not get XML Namespace";
+		case NMR_ERROR_HANDLEOVERFLOW: return "Handle overflow";
+		case NMR_ERROR_NORESOURCES: return "No resources in model file";
+		case NMR_ERROR_NOBUILD: return "No build section in model file";
+		case NMR_ERROR_DUPLICATERESOURCES: return "Duplicate resources section in model file";
+		case NMR_ERROR_DUPLICATEBUILDSECTION: return "Duplicate build section in model file";
+		case NMR_ERROR_DUPLICATEMODELNODE: return "Duplicate model node in XML Stream";
+		case NMR_ERROR_NOMODELNODE: return "No model node in XML Stream";
+		case NMR_ERROR_RESOURCENOTFOUND: return "Resource not found";
+		case NMR_ERROR_UNKNOWNREADERCLASS: return "Unknown reader class";
+		case NMR_ERROR_UNKNOWNWRITERCLASS: return "Unknown writer class";
+		case NMR_ERROR_MODELTEXTURENOTFOUND: return "Texture not found";
+		case NMR_ERROR_INVALIDCONTENTTYPE: return "Invalid Content Type";
+		case NMR_ERROR_INVALIDBASEMATERIAL: return "Invalid Base Material";
+		case NMR_ERROR_TOOMANYMATERIALS: return "Too many materials";
+		case NMR_ERROR_INVALIDTEXTURE: return "Invalid texture";
+		case NMR_ERROR_COULDNOTGETHANDLE: return "Could not get handle";
+		case NMR_ERROR_BUILDITEMNOTFOUND: return "Build item not found";
+		case NMR_ERROR_OPCCOULDNOTGETTEXTUREURI: return "Could not get texture URI";
+		case NMR_ERROR_OPCCOULDNOTGETTEXTURESTREAM: return "Could not get texture stream";
+		case NMR_ERROR_MODELRELATIONSHIPSETREADFAILED: return "Model Relationship read failed";
+		case NMR_ERROR_COULDNOTCREATESTREAM: return "Could not create stream";
+		case NMR_ERROR_NOTSUPPORTINGLEGACYCMYK: return "Not supporting legacy CMYK color";
+		case NMR_ERROR_INVALIDTEXTUREREFERENCE: return "Invalid Texture Reference";
+		case NMR_ERROR_INVALIDTEXTUREID: return "Invalid Texture ID";
+		case NMR_ERROR_NOMODELTOWRITE: return "No model to write";
+		case NMR_ERROR_COULDNOTCONVERTNUMBER: return "Could not convert number";
+
+		// XML Parser Error Constants(0x9XXX)
+		case NMR_ERROR_XMLPARSER_INVALIDATTRIBVALUE: return "Invalid XML attribute value";
+		case NMR_ERROR_XMLPARSER_INVALIDPARSERESULT: return "Invalid XML parse result";
+		case NMR_ERROR_XMLPARSER_TOOMANYUSEDCHARS: return "Too many XML characters used";
+		case NMR_ERROR_XMLPARSER_INVALIDENDDELIMITER: return "Invalid XML end delimiter";
+		case NMR_ERROR_XMLPARSER_INVALIDNAMESPACEPREFIX: return "Invalid XML namespace prefix";
+		case NMR_ERROR_XMLPARSER_COULDNOTPARSEENTITY: return "Could not parse XML entity";
+		case NMR_ERROR_XMLPARSER_EMPTYELEMENTNAME: return "Empty XML element name";
+		case NMR_ERROR_XMLPARSER_INVALIDCHARACTERINELEMENTNAME: return "Invalid characters in XML element name";
+		case NMR_ERROR_XMLPARSER_EMPTYINSTRUCTIONNAME: return "Empty XML instruction name";
+		case NMR_ERROR_XMLPARSER_INVALIDINSTRUCTIONNAME: return "Invalid XML instruction name";
+		case NMR_ERROR_XMLPARSER_COULDNOTCLOSEINSTRUCTION: return "Could not close XML instruction";
+		case NMR_ERROR_XMLPARSER_COULDNOTENDELEMENT: return "Could not end XML element";
+		case NMR_ERROR_XMLPARSER_EMPTYENDELEMENT: return "Empty XML end element";
+		case NMR_ERROR_XMLPARSER_COULDNOTCLOSEELEMENT: return "Could not close XML element";
+		case NMR_ERROR_XMLPARSER_INVALIDATTRIBUTENAME: return "Invalid XML attribute name";
+		case NMR_ERROR_XMLPARSER_SPACEINATTRIBUTENAME: return "Space in XML attribute name";
+		case NMR_ERROR_XMLPARSER_NOQUOTESAROUNDATTRIBUTE: return "No quotes around XML attribute";
+
+		// Library errors (0xAXXX)
+		case NMR_ERROR_COULDNOTGETINTERFACEVERSION: return "Could not get interface version";
+		case NMR_ERROR_INVALIDINTERFACEVERSION: return "Invalid interface version";
+		case NMR_ERROR_INVALIDSTREAMSIZE: return "Invalid stream size";
+		case NMR_ERROR_INVALIDNAMELENGTH: return "Invalid name length";
+		case NMR_ERROR_COULDNOTCREATEMODEL: return "Could not create model";
+		case NMR_ERROR_INVALIDTEXTURETYPE: return "Invalid Texture type";
 
 		default:
 			return "unknown error";

@@ -35,36 +35,35 @@ specific classes for GCC.
 #include "Common/Platform/NMR_Platform.h"
 #include "Common/NMR_Exception.h"
 
-#ifdef __GCC
+#ifdef __GNUC__
 // Only implement this, if we compile with GCC
 
-#include "Common/Platform/NMR_ImportStream_GCC.h"
-#include "Common/Platform/NMR_ExportStream_GCC.h"
-#include "Common/Platform/NMR_XmlReader_GCC.h"
-#include "Common/Platform/NMR_XmlWriter_GCC.h"
+#define NMR_PLATFORM_XMLREADER_BUFFERSIZE 65536
+
+#include "Common/Platform/NMR_ImportStream_GCC_Win32.h"
+#include "Common/Platform/NMR_ExportStream_GCC_Win32.h"
+#include "Common/Platform/NMR_ImportStream_GCC_Native.h"
+#include "Common/Platform/NMR_ExportStream_GCC_Native.h"
+#include "Common/Platform/NMR_XmlReader_Native.h"
+
 
 namespace NMR {
 
 	PImportStream fnCreateImportStreamInstance (_In_ const nfWChar * pwszFileName)
 	{
-		return std::make_shared<CImportStream_GCC> (pwszFileName);
+		return std::make_shared<CImportStream_GCC_Native> (pwszFileName);
 	}
 
 	PExportStream fnCreateExportStreamInstance (_In_ const nfWChar * pwszFileName)
 	{
-		return std::make_shared<CExportStream_GCC> (pwszFileName);
+		return std::make_shared<CExportStream_GCC_Native> (pwszFileName);
 	}
 
 	PXmlReader fnCreateXMLReaderInstance (_In_ PImportStream pImportStream)
 	{
-		return std::make_shared<CXmlReader_GCC> (pImportStream);
-	}
-
-	PXmlWriter fnCreateXMLWriterInstance (_In_ PExportStream pExportStream)
-	{
-		return std::make_shared<CXmlWriter_GCC> (pExportStream);
+		return std::make_shared<CXmlReader_Native> (pImportStream, NMR_PLATFORM_XMLREADER_BUFFERSIZE);
 	}
 
 }
 
-#endif // __GCC
+#endif // __GNUC__

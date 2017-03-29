@@ -33,6 +33,9 @@ NMR_ErrorConst.h defines all error code constants.
 #ifndef __NMR_ERRORCONST
 #define __NMR_ERRORCONST
 
+// This is the output value of a "uncatched exception"
+#define NMR_GENERICEXCEPTIONSTRING "uncatched exception"
+
 // Function has suceeded, there has been no error
 #define NMR_SUCCESS 0
 
@@ -70,7 +73,7 @@ NMR_ErrorConst.h defines all error code constants.
 // The DLL returns this, if it does not support the suspected filters
 #define NMR_ERROR_DLLINVALIDFILTERNAME 0x1009
 
-// The DLL returns this, if not all parameters are provided 
+// The DLL returns this, if not all parameters are provided
 #define NMR_ERROR_DLLMISSINGPARAMETER 0x100A
 
 // The provided Blocksize is invalid (like in CPagedVector)
@@ -136,8 +139,98 @@ NMR_ErrorConst.h defines all error code constants.
 // No component has been given
 #define NMR_ERROR_INVALIDCOMPONENT 0x101F
 
+// Invalid hex value
+#define NMR_ERROR_INVALIDHEXVALUE 0x1020
+
+// Range error
+#define NMR_ERROR_RANGEERROR 0x1021
+
+// Generic Exception
+#define NMR_ERROR_GENERICEXCEPTION 0x1022
+
+// Passed an invalid null pointer
+#define NMR_ERROR_INVALIDPOINTER 0x1023
+
+// XML Element not open
+#define NMR_ERROR_XMLELEMENTNOTOPEN 0x1024
+
+// Invalid XML Name
+#define NMR_ERROR_INVALIDXMLNAME 0x1025
+
+// Invalid Integer Triplet String
+#define NMR_ERROR_INVALIDINTEGERTRIPLET 0x1026
+
+// Invalid ZIP Entry key
+#define NMR_ERROR_INVALIDZIPENTRYKEY 0x1027
+
+// Invalid ZIP Name
+#define NMR_ERRORINVALIDZIPNAME 0x1028
+
+// ZIP Stream cannot seek
+#define NMR_ERROR_ZIPSTREAMCANNOTSEEK 0x1029
+
+// Could not convert to UTF8
+#define NMR_ERROR_COULDNOTCONVERTTOUTF8 0x102A
+
+// Could not convert to UTF16
+#define NMR_ERROR_COULDNOTCONVERTTOUTF16 0x102B
+
+// ZIP Entry overflow
+#define NMR_ERROR_ZIPENTRYOVERFLOW 0x102C
+
+// Invalid ZIP Entry
+#define NMR_ERROR_INVALIDZIPENTRY 0x102D
+
+// Export Stream not empty
+#define NMR_ERROR_EXPORTSTREAMNOTEMPTY 0x102E
+
+// Zip already finished
+#define NMR_ERROR_ZIPALREADYFINISHED 0x102F
+
+// Deflate init failed
+#define NMR_ERROR_DEFLATEINITFAILED 0x1030
+
+// Could not deflate data
+#define NMR_ERROR_COULDNOTDEFLATE 0x1031
+
+// Could not close written XML node
+#define NMR_ERROR_XMLWRITER_CLOSENODEERROR 0x1032
+
+// Invalid OPC Part URI
+#define NMR_ERROR_INVALIDOPCPARTURI 0x1033
+
+// Could not convert number
+#define NMR_ERROR_COULDNOTCONVERTNUMBER 0x1034
+
+// Could not read ZIP file
+#define NMR_ERROR_COULDNOTREADZIPFILE 0x1035
+
+// Could not seek in ZIP file
+#define NMR_ERROR_COULDNOTSEEKINZIP 0x1036
+
+// Could not stat ZIP entry
+#define NMR_ERROR_COULDNOTSTATZIPENTRY 0x1037
+
+// Could not open ZIP entry
+#define NMR_ERROR_COULDNOTOPENZIPENTRY 0x1038
+
+// Invalid XML Depth
+#define NMR_ERROR_INVALIDXMLDEPTH 0x1039
+
+// XML Element not empty
+#define NMR_ERROR_XMLELEMENTNOTEMPTY 0x103A
+
+// Could not initialize COM
+#define NMR_ERROR_COULDNOTINITITALIZECOM 0x103B
+
+// Callback stream cannot seek
+#define NMR_ERROR_CALLBACKSTREAMCANNOTSEEK 0x103C
+
+// Could not write to callback stream
+#define NMR_ERROR_COULDNOTWRITETOCALLBACKSTREAM 0x103D
+
 /*-------------------------------------------------------------------
-  Core framework error codes (0x2XXX)
+Core framework error codes (0x2XXX)
 -------------------------------------------------------------------*/
 
 // No Progress Interval has been specified in the progress handler
@@ -314,6 +407,9 @@ NMR_ErrorConst.h defines all error code constants.
 // Mesh Information Block was not assigned
 #define NMR_ERROR_INVALIDMESHINFORMATIONDATA 0x203A
 
+// Could not get stream position
+#define NMR_ERROR_COULDNOTGETSTREAMPOSITION 0x203B
+
 /*-------------------------------------------------------------------
 Model error codes (0x8XXX)
 -------------------------------------------------------------------*/
@@ -387,8 +483,8 @@ Model error codes (0x8XXX)
 // Could not read XML node
 #define NMR_ERROR_READXMLNODEFAILED 0x8017
 
-// Could not retrieve qualified xml node name
-#define NMR_ERROR_COULDNOTGETQUALIFIEDXMLNAME 0x8018
+// Could not retrieve local xml node name
+#define NMR_ERROR_COULDNOTGETLOCALXMLNAME 0x8018
 
 // Could not parse XML Node content
 #define NMR_ERROR_COULDPARSEXMLCONTENT 0x8019
@@ -498,19 +594,19 @@ Model error codes (0x8XXX)
 // Build item Object ID was not specified
 #define NMR_ERROR_MISSINGBUILDITEMOBJECTID 0x803C
 
-// Build item Object ID is ambiguous 
+// Build item Object ID is ambiguous
 #define NMR_ERROR_DUPLICATEBUILDITEMOBJECTID 0x803D
 
 // Build item Object ID is invalid
 #define NMR_ERROR_INVALIDBUILDITEMOBJECTID 0x803E
 
-// Could not find Object associated to the Build item 
+// Could not find Object associated to the Build item
 #define NMR_ERROR_COULDNOTFINDBUILDITEMOBJECT 0x803F
 
 // Could not find Object associated to Component
 #define NMR_ERROR_COULDNOTFINDCOMPONENTOBJECT 0x8040
 
-// Component Object ID is ambiguous 
+// Component Object ID is ambiguous
 #define NMR_ERROR_DUPLICATECOMPONENTOBJECTID 0x8041
 
 // Texture ID was not specified
@@ -602,5 +698,172 @@ Model error codes (0x8XXX)
 
 // Invalid Model Object Type
 #define NMR_ERROR_INVALIDMODELOBJECTTYPE 0x805F
+
+// Missing Model Resource ID
+#define NMR_ERROR_MISSINGMODELRESOURCEID 0x8060
+
+// Duplicate Resource ID
+#define NMR_ERROR_DUPLICATERESOURCEID 0x8061
+
+// Could not write XML Content
+#define NMR_ERROR_COULDNOTWRITEXMLCONTENT 0x8062
+
+// Could not get XML Namespace
+#define NMR_ERROR_COULDNOTGETNAMESPACE 0x8063
+
+// Handle overflow
+#define NMR_ERROR_HANDLEOVERFLOW 0x8064
+
+// No resources in model file
+#define NMR_ERROR_NORESOURCES 0x8065
+
+// No build section in model file
+#define NMR_ERROR_NOBUILD 0x8066
+
+// Duplicate resources section in model file
+#define NMR_ERROR_DUPLICATERESOURCES 0x8067
+
+// Duplicate build section in model file
+#define NMR_ERROR_DUPLICATEBUILDSECTION 0x8068
+
+// Duplicate model node in XML Stream
+#define NMR_ERROR_DUPLICATEMODELNODE 0x8069
+
+// No model node in XML Stream
+#define NMR_ERROR_NOMODELNODE 0x806A
+
+// Resource not found
+#define NMR_ERROR_RESOURCENOTFOUND 0x806B
+
+// Unknown reader class
+#define NMR_ERROR_UNKNOWNREADERCLASS 0x806C
+
+// Unknown writer class
+#define NMR_ERROR_UNKNOWNWRITERCLASS 0x806D
+
+// Texture not found
+#define NMR_ERROR_MODELTEXTURENOTFOUND 0x806E
+
+// Invalid Content Type
+#define NMR_ERROR_INVALIDCONTENTTYPE 0x806F
+
+// Invalid Base Material
+#define NMR_ERROR_INVALIDBASEMATERIAL 0x8070
+
+// Too many materials
+#define NMR_ERROR_TOOMANYMATERIALS 0x8071
+
+// Invalid texture
+#define NMR_ERROR_INVALIDTEXTURE 0x8072
+
+// Could not get handle
+#define NMR_ERROR_COULDNOTGETHANDLE 0x8073
+
+// Build item not found
+#define NMR_ERROR_BUILDITEMNOTFOUND 0x8074
+// Could not get texture URI
+#define NMR_ERROR_OPCCOULDNOTGETTEXTUREURI 0x8075
+
+// Could not get texture stream
+#define NMR_ERROR_OPCCOULDNOTGETTEXTURESTREAM 0x8076
+
+// Model Relationship read failed
+#define NMR_ERROR_MODELRELATIONSHIPSETREADFAILED 0x8077
+
+// No texture stream available
+#define NMR_ERROR_NOTEXTURESTREAM 0x8078
+
+// Could not create stream
+#define NMR_ERROR_COULDNOTCREATESTREAM 0x8079
+
+// Not supporting legacy CMYK color
+#define NMR_ERROR_NOTSUPPORTINGLEGACYCMYK 0x807A
+
+// Invalid Texture Reference
+#define NMR_ERROR_INVALIDTEXTUREREFERENCE 0x807B
+
+// Invalid Texture ID
+#define NMR_ERROR_INVALIDTEXTUREID 0x807C
+
+// No model to write
+#define NMR_ERROR_NOMODELTOWRITE 0x807D
+
+
+/*-------------------------------------------------------------------
+XML Parser Error Constants (0x9XXX)
+-------------------------------------------------------------------*/
+
+// Invalid XML attribute value
+#define NMR_ERROR_XMLPARSER_INVALIDATTRIBVALUE 0x9001
+
+// Invalid XML parse result
+#define NMR_ERROR_XMLPARSER_INVALIDPARSERESULT 0x9002
+
+// Too many XML characters used
+#define NMR_ERROR_XMLPARSER_TOOMANYUSEDCHARS 0x9003
+
+// Invalid XML end delimiter
+#define NMR_ERROR_XMLPARSER_INVALIDENDDELIMITER 0x9004
+
+// Invalid XML namespace prefix
+#define NMR_ERROR_XMLPARSER_INVALIDNAMESPACEPREFIX 0x9005
+
+// Could not parse XML entity
+#define NMR_ERROR_XMLPARSER_COULDNOTPARSEENTITY 0x9006
+
+// Empty XML element name
+#define NMR_ERROR_XMLPARSER_EMPTYELEMENTNAME 0x9007
+
+// Invalid characters in XML element name
+#define NMR_ERROR_XMLPARSER_INVALIDCHARACTERINELEMENTNAME 0x9008
+
+// Empty XML instruction name
+#define NMR_ERROR_XMLPARSER_EMPTYINSTRUCTIONNAME 0x9009
+
+// Invlaid XML instruction name
+#define NMR_ERROR_XMLPARSER_INVALIDINSTRUCTIONNAME 0x900A
+
+// Could not close XML instruction
+#define NMR_ERROR_XMLPARSER_COULDNOTCLOSEINSTRUCTION 0x900B
+
+// Could not end XML element
+#define NMR_ERROR_XMLPARSER_COULDNOTENDELEMENT 0x900C
+
+// Empty XML end element
+#define NMR_ERROR_XMLPARSER_EMPTYENDELEMENT 0x900D
+
+// Could not close XML element
+#define NMR_ERROR_XMLPARSER_COULDNOTCLOSEELEMENT 0x900E
+
+// Invalid XML attribute name
+#define NMR_ERROR_XMLPARSER_INVALIDATTRIBUTENAME 0x900F
+
+// Space in XML attribute name
+#define NMR_ERROR_XMLPARSER_SPACEINATTRIBUTENAME 0x9010
+
+// No quotes around XML attribute
+#define NMR_ERROR_XMLPARSER_NOQUOTESAROUNDATTRIBUTE 0x9011
+
+/*-------------------------------------------------------------------
+Library errors (0xAXXX)
+-------------------------------------------------------------------*/
+
+// Could not get interface version
+#define NMR_ERROR_COULDNOTGETINTERFACEVERSION 0xA001
+
+// Invalid interface version
+#define NMR_ERROR_INVALIDINTERFACEVERSION 0xA002
+
+// Invalid stream size
+#define NMR_ERROR_INVALIDSTREAMSIZE 0xA003
+
+// Invalid name length
+#define NMR_ERROR_INVALIDNAMELENGTH 0xA004
+
+// Could not create model
+#define NMR_ERROR_COULDNOTCREATEMODEL 0xA005
+
+// Invalid Texture type
+#define NMR_ERROR_INVALIDTEXTURETYPE 0xA006
 
 #endif // __NMR_ERRORCONST

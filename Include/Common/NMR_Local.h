@@ -38,8 +38,17 @@ It should be used in every header file of the project.
 #include "NMR_Assertion.h"
 #include "Common/Platform/NMR_SAL.h"
 
-#ifndef __GCC
+#define __NMR_INLINE __inline
+
+#ifndef __GNUC__
 #pragma warning (3:4706)
+#endif
+
+
+#ifndef __GNUC__
+#define LIB3MF_CDECL __cdecl
+#else
+#define LIB3MF_CDECL
 #endif
 
 #endif // __NMR_LOCAL

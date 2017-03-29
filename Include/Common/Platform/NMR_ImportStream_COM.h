@@ -41,8 +41,6 @@ This is an abstract base stream class for importing from COM IStreams.
 #include "Common/Platform/NMR_IStream.h"
 #include "Common/Platform/NMR_CComPtr.h"
 
-#define NMR_IMPORTSTREAM_READBUFFERSIZE (1024 * 1024)
-
 namespace NMR {
 
 	class CImportStream_COM : public CImportStream {
@@ -56,8 +54,10 @@ namespace NMR {
 		virtual nfBool seekPosition(_In_ nfUint64 position, _In_ nfBool bHasToSucceed);
 		virtual nfBool seekForward(_In_ nfUint64 bytes, _In_ nfBool bHasToSucceed);
 		virtual nfBool seekFromEnd(_In_ nfUint64 bytes, _In_ nfBool bHasToSucceed);
-		virtual nfUint64 getPosition();
 		virtual nfUint64 readBuffer(_In_ nfByte * pBuffer, _In_ nfUint64 cbTotalBytesToRead, nfBool bNeedsToReadAll);
+		virtual nfUint64 retrieveSize();
+		virtual void writeToFile(_In_ const nfWChar * pwszFileName);
+		virtual PImportStream copyToMemory();
 
 		CComPtr <IStream> getCOMStream ();
 	};

@@ -31,64 +31,194 @@ COM Interface Implementation for Model Writer Class
 
 --*/
 
-#include "Model/COM/NMR_COMInterface_ModelWriter.h" 
-#include "Model/Writer/NMR_ModelWriter.h" 
-#include "Common/NMR_Exception.h" 
-#include "Common/NMR_Exception_Windows.h" 
-#include "Common/Platform/NMR_Platform.h" 
+#include "Model/COM/NMR_COMInterface_ModelWriter.h"
+#include "Model/Writer/NMR_ModelWriter.h"
+#include "Common/NMR_Exception.h"
+#include "Common/NMR_Exception_Windows.h"
+#include "Common/Platform/NMR_Platform.h"
+#include "Common/NMR_StringUtils.h"
 
-#ifndef __GCC
-#include "Common/Platform/NMR_ExportStream_COM.h" 
-#endif // __GCC
+#include "Common/Platform/NMR_ExportStream_Callback.h"
+#include <locale.h>
+
+#ifndef __GNUC__
+#include "Common/Platform/NMR_ExportStream_COM.h"
+#endif // __GNUC__
 
 namespace NMR {
 
-	LIB3MFMETHODIMP CCOMModelWriter::WriteToFile(_In_z_ LPCWSTR pwszFilename)
+	CCOMModelWriter::CCOMModelWriter()
 	{
-		if (pwszFilename == nullptr)
-			return LIB3MF_POINTER;
-		if (m_pModelWriter.get() == nullptr)
-			return LIB3MF_FAIL;
-
-		try {
-			PExportStream pStream = fnCreateExportStreamInstance(pwszFilename);
-			m_pModelWriter->exportToStream(pStream);
-			return LIB3MF_OK;
-		}
-		catch (CNMRException_Windows & WinException) {
-			return WinException.getHResult();
-		}
-		catch (...) {
-			return LIB3MF_FAIL;
-		}
+		m_nErrorCode = NMR_SUCCESS;
 	}
-
-#ifndef __GCC
-	LIB3MFMETHODIMP CCOMModelWriter::WriteToStream(_In_ IStream * pStream)
-	{
-		if (pStream == nullptr)
-			return LIB3MF_INVALIDARG;
-		if (m_pModelWriter.get() == nullptr)
-			return LIB3MF_FAIL;
-
-		try {
-			PExportStream pExportStream = std::make_shared<CExportStream_COM>(pStream);
-			m_pModelWriter->exportToStream(pExportStream);
-			return LIB3MF_OK;
-		}
-		catch (CNMRException_Windows & WinException) {
-			return WinException.getHResult();
-		}
-		catch (...) {
-			return LIB3MF_FAIL;
-		}
-
-	}
-#endif // __GCC
 
 	void CCOMModelWriter::setWriter(_In_ PModelWriter pModelWriter)
 	{
 		m_pModelWriter = pModelWriter;
 	}
+
+	LIB3MFRESULT CCOMModelWriter::handleSuccess()
+	{
+		m_nErrorCode = NMR_SUCCESS;
+		return LIB3MF_OK;
+	}
+
+	LIB3MFRESULT CCOMModelWriter::handleNMRException(_In_ CNMRException * pException)
+	{
+		__NMRASSERT(pException);
+
+		m_nErrorCode = pException->getErrorCode();
+		m_sErrorMessage = std::string(pException->what());
+
+		CNMRException_Windows * pWinException = dynamic_cast<CNMRException_Windows *> (pException);
+		if (pWinException != nullptr) {
+			return pWinException->getHResult();
+		}
+		else {
+			return LIB3MF_FAIL;
+		}
+	}
+
+	LIB3MFRESULT CCOMModelWriter::handleGenericException()
+	{
+		m_nErrorCode = NMR_ERROR_GENERICEXCEPTION;
+		m_sErrorMessage = NMR_GENERICEXCEPTIONSTRING;
+		return LIB3MF_FAIL;
+	}
+
+
+	LIB3MFMETHODIMP CCOMModelWriter::GetLastError(_Out_ DWORD * pErrorCode, _Outptr_opt_ LPCSTR * pErrorMessage)
+	{
+		if (!pErrorCode)
+			return LIB3MF_POINTER;
+
+		*pErrorCode = m_nErrorCode;
+		if (pErrorMessage) {
+			if (m_nErrorCode != NMR_SUCCESS) {
+				*pErrorMessage = m_sErrorMessage.c_str();
+			}
+			else {
+				*pErrorMessage = nullptr;
+			}
+		}
+
+		return LIB3MF_OK;
+	}
+
+	LIB3MFMETHODIMP CCOMModelWriter::WriteToFile(_In_z_ LPCWSTR pwszFilename)
+	{
+
+		try {
+			if (pwszFilename == nullptr)
+				throw CNMRException(NMR_ERROR_INVALIDPOINTER);
+			if (m_pModelWriter.get() == nullptr)
+				throw CNMRException(NMR_ERROR_RESOURCENOTFOUND);
+
+			setlocale (LC_ALL, "C");
+			PExportStream pStream = fnCreateExportStreamInstance(pwszFilename);
+			m_pModelWriter->exportToStream(pStream);
+
+			return handleSuccess();
+		}
+		catch (CNMRException_Windows & WinException) {
+			return handleNMRException(&WinException);
+		}
+		catch (CNMRException & Exception) {
+			return handleNMRException(&Exception);
+		}
+		catch (...) {
+			return handleGenericException();
+		}
+	}
+
+	LIB3MFMETHODIMP CCOMModelWriter::WriteToFileUTF8(_In_z_ LPCSTR pwszFilename)
+	{
+
+		try {
+			if (pwszFilename == nullptr)
+				throw CNMRException(NMR_ERROR_INVALIDPOINTER);
+			if (m_pModelWriter.get() == nullptr)
+				throw CNMRException(NMR_ERROR_RESOURCENOTFOUND);
+
+			// Convert to UTF16
+			std::string sUTF8FileName(pwszFilename);
+			std::wstring sUTF16FileName = fnUTF8toUTF16(sUTF8FileName);
+
+			setlocale (LC_ALL, "C");
+
+			PExportStream pStream = fnCreateExportStreamInstance(sUTF16FileName.c_str());
+			m_pModelWriter->exportToStream(pStream);
+
+			return handleSuccess();
+		}
+		catch (CNMRException_Windows & WinException) {
+			return handleNMRException(&WinException);
+		}
+		catch (CNMRException & Exception) {
+			return handleNMRException(&Exception);
+		}
+		catch (...) {
+			return handleGenericException();
+		}
+	}
+
+	LIB3MFMETHODIMP CCOMModelWriter::WriteToCallback(_In_ void * pWriteCallback, _In_opt_ void * pSeekCallback, _In_opt_ void * pUserData)
+	{
+		try {
+			if (pWriteCallback == nullptr)
+				throw CNMRException(NMR_ERROR_INVALIDPARAM);
+
+			if (m_pModelWriter.get() == nullptr)
+				throw CNMRException(NMR_ERROR_RESOURCENOTFOUND);
+
+			setlocale (LC_ALL, "C");
+
+			ExportStream_WriteCallbackType pTypedWriteCallback = (ExportStream_WriteCallbackType) pWriteCallback;
+			ExportStream_SeekCallbackType pTypedSeekCallback = (ExportStream_SeekCallbackType)pSeekCallback;
+
+			PExportStream pStream = std::make_shared<CExportStream_Callback> (pTypedWriteCallback, pTypedSeekCallback, pUserData);
+			m_pModelWriter->exportToStream(pStream);
+		
+			return handleSuccess();
+		}
+		catch (CNMRException_Windows & WinException) {
+			return handleNMRException(&WinException);
+		}
+		catch (CNMRException & Exception) {
+			return handleNMRException(&Exception);
+		}
+		catch (...) {
+			return handleGenericException();
+		}
+	}
+
+
+#ifndef __GNUC__
+	LIB3MFMETHODIMP CCOMModelWriter::WriteToStream(_In_ IStream * pStream)
+	{
+
+		try {
+			if (pStream == nullptr)
+				throw CNMRException(NMR_ERROR_INVALIDPOINTER);
+			if (m_pModelWriter.get() == nullptr)
+				throw CNMRException(NMR_ERROR_RESOURCENOTFOUND);
+
+			setlocale (LC_ALL, "C");
+
+			PExportStream pExportStream = std::make_shared<CExportStream_COM>(pStream);
+			m_pModelWriter->exportToStream(pExportStream);
+
+			return handleSuccess();
+		}
+		catch (CNMRException & Exception) {
+			return handleNMRException(&Exception);
+		}
+		catch (...) {
+			return handleGenericException();
+		}
+
+	}
+#endif // __GNUC__
+
 
 }

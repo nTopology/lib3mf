@@ -16,10 +16,12 @@ specific functionalities, which are now covered by the WinRT platform (like XML 
 ZIP compression). This will come when time passes.
 
 The specification can be downloaded at
-http://3mf.io/what-is-3mf/3mf-specification/
+http://3mf.io/specification/
 
 For example code, please refer to 
 https://github.com/3MFConsortium/lib3mf-examples
 
 For a more detailed documentation, please take a look into the PDF in the root directory
 of this repository.
+
+Lib3MF is licensed under the simplified BSD license.

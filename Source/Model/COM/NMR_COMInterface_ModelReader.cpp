@@ -36,71 +36,161 @@ COM Interface Implementation for Model Reader Class
 #include "Common/NMR_Exception_Windows.h" 
 #include "Common/Platform/NMR_Platform.h" 
 #include "Common/NMR_StringUtils.h" 
+#include <locale.h>
 
-#ifndef __GCC
+#ifndef __GNUC__
 #include "Common/Platform/NMR_ImportStream_COM.h" 
-#endif // __GCC
+#endif // __GNUC__
 
 namespace NMR {
 
+	CCOMModelReader::CCOMModelReader()
+	{
+		m_nErrorCode = NMR_SUCCESS;
+	}
+
+	void CCOMModelReader::setReader(_In_ PModelReader pModelReader)
+	{
+		m_pModelReader = pModelReader;
+	}
+
+
+	LIB3MFRESULT CCOMModelReader::handleSuccess()
+	{
+		m_nErrorCode = NMR_SUCCESS;
+		return LIB3MF_OK;
+	}
+
+	LIB3MFRESULT CCOMModelReader::handleNMRException(_In_ CNMRException * pException)
+	{
+		__NMRASSERT(pException);
+
+		m_nErrorCode = pException->getErrorCode();
+		m_sErrorMessage = std::string(pException->what());
+
+		CNMRException_Windows * pWinException = dynamic_cast<CNMRException_Windows *> (pException);
+		if (pWinException != nullptr) {
+			return pWinException->getHResult();
+		}
+		else {
+			return LIB3MF_FAIL;
+		}
+	}
+
+	LIB3MFRESULT CCOMModelReader::handleGenericException()
+	{
+		m_nErrorCode = NMR_ERROR_GENERICEXCEPTION;
+		m_sErrorMessage = NMR_GENERICEXCEPTIONSTRING;
+		return LIB3MF_FAIL;
+	}
+
+
+	LIB3MFMETHODIMP CCOMModelReader::GetLastError(_Out_ DWORD * pErrorCode, _Outptr_opt_ LPCSTR * pErrorMessage)
+	{
+		if (!pErrorCode)
+			return LIB3MF_POINTER;
+
+		*pErrorCode = m_nErrorCode;
+		if (pErrorMessage) {
+			if (m_nErrorCode != NMR_SUCCESS) {
+				*pErrorMessage = m_sErrorMessage.c_str();
+			}
+			else {
+				*pErrorMessage = nullptr;
+			}
+		}
+
+		return LIB3MF_OK;
+	}
+
 	LIB3MFMETHODIMP CCOMModelReader::ReadFromFile(_In_z_ LPCWSTR pwszFilename)
 	{
-		if (pwszFilename == nullptr)
-			return LIB3MF_POINTER;
-		if (m_pModelReader.get() == nullptr)
-			return LIB3MF_FAIL;
-
 		try {
-			PImportStream pStream = fnCreateImportStreamInstance (pwszFilename);
+			if (pwszFilename == nullptr)
+				throw CNMRException(NMR_ERROR_INVALIDPOINTER);
+			if (m_pModelReader.get() == nullptr)
+				throw CNMRException(NMR_ERROR_INVALIDREADEROBJECT);
+
+			setlocale (LC_ALL, "C");
+
+			PImportStream pStream = fnCreateImportStreamInstance(pwszFilename);
 			m_pModelReader->readStream(pStream);
-			return LIB3MF_OK;
+			return handleSuccess();
 		}
-		catch (CNMRException_Windows & WinException) {
-			return WinException.getHResult();
+		catch (CNMRException & Exception) {
+			return handleNMRException(&Exception);
 		}
 		catch (...) {
-			return LIB3MF_FAIL;
+			return handleGenericException();
+		}
+	}
+
+	LIB3MFMETHODIMP CCOMModelReader::ReadFromFileUTF8(_In_z_ LPCSTR pwszFilename)
+	{
+		try {
+			if (pwszFilename == nullptr)
+				throw CNMRException(NMR_ERROR_INVALIDPOINTER);
+			if (m_pModelReader.get() == nullptr)
+				throw CNMRException(NMR_ERROR_INVALIDREADEROBJECT);
+
+			setlocale (LC_ALL, "C");
+
+			// Convert to UTF16
+			std::string sUTF8FileName(pwszFilename);
+			std::wstring sUTF16FileName = fnUTF8toUTF16(sUTF8FileName);
+
+			PImportStream pStream = fnCreateImportStreamInstance(sUTF16FileName.c_str());
+			m_pModelReader->readStream(pStream);
+			return handleSuccess();
+		}
+		catch (CNMRException & Exception) {
+			return handleNMRException(&Exception);
+		}
+		catch (...) {
+			return handleGenericException();
 		}
 	}
 
 	LIB3MFMETHODIMP CCOMModelReader::GetWarningCount(_Out_ DWORD * pnWarningCount)
 	{
-		if (pnWarningCount == nullptr)
-			return LIB3MF_POINTER;
-		if (m_pModelReader.get() == nullptr)
-			return LIB3MF_FAIL;
 
 		try {
+			if (pnWarningCount == nullptr)
+				throw CNMRException(NMR_ERROR_INVALIDPOINTER);
+			if (m_pModelReader.get() == nullptr)
+				throw CNMRException(NMR_ERROR_INVALIDREADEROBJECT);
+
 			PModelReaderWarnings pWarnings = m_pModelReader->getWarnings();
 			if (pWarnings.get() == nullptr)
-				return LIB3MF_FAIL;
+				throw CNMRException(NMR_ERROR_INVALIDPARAM);
 
 			*pnWarningCount = pWarnings->getWarningCount();
-			return LIB3MF_OK;
+			return handleSuccess();
 		}
-		catch (CNMRException_Windows & WinException) {
-			return WinException.getHResult();
+		catch (CNMRException & Exception) {
+			return handleNMRException(&Exception);
 		}
 		catch (...) {
-			return LIB3MF_FAIL;
+			return handleGenericException();
 		}
 	}
 
 	LIB3MFMETHODIMP CCOMModelReader::GetWarning(_In_ DWORD nIndex, _Out_ DWORD * pErrorCode, _Out_opt_ LPWSTR pwszBuffer, _In_ ULONG cbBufferSize, _Out_opt_ ULONG * pcbNeededChars)
 	{
-		if (m_pModelReader.get() == nullptr)
-			return LIB3MF_FAIL;
 
 		try {
+			if (m_pModelReader.get() == nullptr)
+				throw CNMRException(NMR_ERROR_INVALIDREADEROBJECT);
+
 			PModelReaderWarnings pWarnings = m_pModelReader->getWarnings();
 			if (pWarnings.get() == nullptr)
-				return LIB3MF_FAIL;
+				throw CNMRException(NMR_ERROR_INVALIDPARAM);
 
 			PModelReaderWarning pWarning = pWarnings->getWarning(nIndex);
 			__NMRASSERT(pWarning.get() != nullptr);
 
 			if (cbBufferSize > MODEL_MAXSTRINGBUFFERLENGTH)
-				return LIB3MF_FAIL;
+				throw CNMRException(NMR_ERROR_INVALIDBUFFERSIZE);
 
 			// Safely call StringToBuffer
 			nfUint32 nNeededChars = 0;
@@ -109,44 +199,42 @@ namespace NMR {
 			// Return length if needed
 			if (pcbNeededChars != nullptr)
 				*pcbNeededChars = nNeededChars;
-			if (pErrorCode != nullptr)
-				return LIB3MF_POINTER;
+			if (pErrorCode == nullptr)
+				throw CNMRException(NMR_ERROR_INVALIDPOINTER);
+			*pErrorCode = pWarning->getErrorCode();
 
-			return LIB3MF_OK;
+			return handleSuccess();
 		}
-		catch (CNMRException_Windows & WinException) {
-			return WinException.getHResult();
+		catch (CNMRException & Exception) {
+			return handleNMRException(&Exception);
 		}
 		catch (...) {
-			return LIB3MF_FAIL;
+			return handleGenericException();
 		}
 	}
 
-#ifndef __GCC
+#ifndef __GNUC__
 	LIB3MFMETHODIMP CCOMModelReader::ReadFromStream(_In_ IStream * pStream)
 	{
-		if (pStream == nullptr)
-			return LIB3MF_INVALIDARG;
-		if (m_pModelReader.get() == nullptr)
-			return LIB3MF_FAIL;
-
 		try {
+			if (pStream == nullptr)
+				throw CNMRException(NMR_ERROR_INVALIDPOINTER);
+			if (m_pModelReader.get() == nullptr)
+				throw CNMRException(NMR_ERROR_INVALIDREADEROBJECT);
+
+			setlocale (LC_ALL, "C");
 			PImportStream pImportStream = std::make_shared<CImportStream_COM>(pStream);
 			m_pModelReader->readStream(pImportStream);
-			return LIB3MF_OK;
+			return handleSuccess();
 		}
-		catch (CNMRException_Windows & WinException) {
-			return WinException.getHResult();
+		catch (CNMRException & Exception) {
+			return handleNMRException(&Exception);
 		}
 		catch (...) {
-			return LIB3MF_FAIL;
+			return handleGenericException();
 		}
 	}
-#endif // __GCC
+#endif // __GNUC__
 
-	void CCOMModelReader::setReader(_In_ PModelReader pModelReader)
-	{
-		m_pModelReader = pModelReader;
-	}
 
 }

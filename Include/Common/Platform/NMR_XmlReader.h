@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation 
+Copyright (C) 2015 Microsoft Corporation
 Copyright (C) 2015 netfabb GmbH (Original Author)
 
 All rights reserved.
@@ -46,13 +46,14 @@ namespace NMR {
 	};
 
 	class CXmlReader {
-  private:
+    protected:
 		PImportStream m_pImportStream;
 	public:
 		CXmlReader(_In_ PImportStream pImportStream);
 
-		virtual void GetQualifiedName(_Outptr_result_buffer_maybenull_(*pcwchQualifiedName + 1) const nfWChar ** ppwszQualifiedName, _Out_opt_ nfUint32 *pcwchQualifiedName) = 0;
+		virtual void GetLocalName(_Outptr_result_buffer_maybenull_(*pcwchLocalName + 1) const nfWChar ** ppwszLocalName, _Out_opt_ nfUint32 *pcwchLocalName) = 0;
 		virtual void GetValue(_Outptr_result_buffer_maybenull_(*pcwchValue + 1)  const nfWChar ** ppwszValue, _Out_opt_  nfUint32 *pcwchValue) = 0;
+		virtual void GetNamespaceURI(_Outptr_result_buffer_maybenull_(*pcwchValue + 1)  const nfWChar ** ppwszValue, _Out_opt_  nfUint32 *pcwchValue) = 0;
 
 		virtual nfBool Read(_Out_ eXmlReaderNodeType & NodeType) = 0;
 		virtual nfBool IsEOF() = 0;
@@ -60,6 +61,7 @@ namespace NMR {
 		virtual nfBool MoveToFirstAttribute() = 0;
 		virtual nfBool MoveToNextAttribute() = 0;
 		virtual nfBool IsDefault() = 0;
+		virtual void CloseElement();
 	};
 
 	typedef std::shared_ptr<CXmlReader> PXmlReader;

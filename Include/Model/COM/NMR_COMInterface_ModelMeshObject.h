@@ -46,8 +46,18 @@ namespace NMR {
 		PModelResource m_pResource;
 		_Ret_notnull_ CModelMeshObject * getMeshObject();
 		_Ret_notnull_ CMesh * getMesh();
+
+		nfError m_nErrorCode;
+		std::string m_sErrorMessage;
+
+		LIB3MFRESULT handleNMRException(_In_ CNMRException * pException);
+		LIB3MFRESULT handleGenericException();
+		LIB3MFRESULT handleSuccess();
+
 	public:
 		LIB3MFINTERFACE_DECL(ILib3MFModelMeshObject)
+
+		LIB3MFMETHOD(GetLastError) (_Out_ DWORD * pErrorCode, _Outptr_opt_ LPCSTR * pErrorMessage);
 
 		LIB3MFMETHOD(GetVertexCount) (_Out_ DWORD * pnVertexCount);
 		LIB3MFMETHOD(GetTriangleCount) (_Out_ DWORD * pnTriangleCount);
@@ -65,14 +75,28 @@ namespace NMR {
 
 		LIB3MFMETHOD(SetGeometry) (_In_ MODELMESHVERTEX * pVertices, _In_ DWORD nVertexCount, _In_ MODELMESHTRIANGLE * pTriangles, _In_ DWORD nTriangleCount);
 
-		LIB3MFMETHOD(GetResourceID) (_Out_ DWORD * pnVertexCount);
+		LIB3MFMETHOD(GetResourceID) (_Out_ DWORD * pnResourceID);
 
 		LIB3MFMETHOD(GetName) (_Out_opt_ LPWSTR pwszBuffer, _In_ ULONG cbBufferSize, _Out_ ULONG * pcbNeededChars);
+		LIB3MFMETHOD(GetNameUTF8) (_Out_opt_ LPSTR pszBuffer, _In_ ULONG cbBufferSize, _Out_ ULONG * pcbNeededChars);
 		LIB3MFMETHOD(SetName) (_In_z_ LPCWSTR pwszName);
+		LIB3MFMETHOD(SetNameUTF8) (_In_z_ LPCSTR pszName);
 		LIB3MFMETHOD(GetPartNumber) (_Out_opt_ LPWSTR pwszBuffer, _In_ ULONG cbBufferSize, _Out_ ULONG * pcbNeededChars);
+		LIB3MFMETHOD(GetPartNumberUTF8) (_Out_opt_ LPSTR pszBuffer, _In_ ULONG cbBufferSize, _Out_ ULONG * pcbNeededChars);
 		LIB3MFMETHOD(SetPartNumber) (_In_z_ LPCWSTR pwszPartNumber);
+		LIB3MFMETHOD(SetPartNumberUTF8) (_In_z_ LPCSTR pszPartNumber);
 		LIB3MFMETHOD(GetType) (_Out_ DWORD * pObjectType);
 		LIB3MFMETHOD(SetType) (_In_ DWORD ObjectType);
+		LIB3MFMETHOD(IsMeshObject) (_Out_ BOOL * pbIsMeshObject);
+		LIB3MFMETHOD(IsComponentsObject) (_Out_ BOOL * pbIsComponentsObject);
+		LIB3MFMETHOD(IsValidObject) (_Out_ BOOL * pbIsValid);
+		LIB3MFMETHOD(CreateDefaultPropertyHandler) (_Outptr_ ILib3MFDefaultPropertyHandler ** ppPropertyHandler);
+		LIB3MFMETHOD(CreateDefaultMultiPropertyHandler) (_In_ DWORD nChannel, _Outptr_ ILib3MFDefaultPropertyHandler ** ppPropertyHandler);
+
+		LIB3MFMETHOD(CreatePropertyHandler) (_Outptr_ ILib3MFPropertyHandler ** ppPropertyHandler);
+		LIB3MFMETHOD(CreateMultiPropertyHandler) (_In_ DWORD nChannel, _Outptr_ ILib3MFPropertyHandler ** ppPropertyHandler);
+
+		LIB3MFMETHOD(IsManifoldAndOriented) (_Out_ BOOL * pbIsOrientedAndManifold);
 
 		CCOMModelMeshObject();
 
