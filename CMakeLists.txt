@@ -138,20 +138,43 @@ list (APPEND sources
 
 
 list (APPEND sources
-	
-
+"Source\Model\Reader\NMR_ModelReader_TexCoordMapping.cpp"
+"Source\Model\Reader\NMR_ModelReaderNode.cpp"
+"Source\Model\Reader\NMR_ModelReaderNode_Model.cpp"
+"Source\Model\Reader\NMR_ModelReaderWarnings.cpp"
+"Source\Model\Reader\NMR_ModelReader.cpp"
+"Source\Model\Reader\NMR_ModelReader_3MF.cpp"
+"Source\Model\Reader\NMR_ModelReader_3MF_GCC.cpp"
+"Source\Model\Reader\NMR_ModelReader_3MF_Native.cpp"
+"Source\Model\Reader\NMR_ModelReader_3MF_OPC.cpp"
+"Source\Model\Reader\NMR_ModelReader_ColorMapping.cpp"
+"Source\Model\Reader\NMR_ModelReader_STL.cpp"
 	)
 
 
 list (APPEND sources
-	
+"Source\Model\Writer\v100\NMR_ModelWriterNode100_Model.cpp"
+"Source\Model\Writer\v100\NMR_ModelWriterNode100_Mesh.cpp"
 
-	)
-
-
-
+)
 
 
+list (APPEND sources
+"Source\Model\Writer\NMR_ModelWriter_TexCoordMapping.cpp"
+"Source\Model\Writer\NMR_ModelWriter_TexCoordMappingContainer.cpp"
+"Source\Model\Writer\NMR_ModelWriterNode.cpp"
+"Source\Model\Writer\NMR_ModelWriter.cpp"
+"Source\Model\Writer\NMR_ModelWriter_3MF.cpp"
+"Source\Model\Writer\NMR_ModelWriter_3MF_Native.cpp"
+"Source\Model\Writer\NMR_ModelWriter_3MF_OPC.cpp"
+"Source\Model\Writer\NMR_ModelWriter_ColorMapping.cpp"
+"Source\Model\Writer\NMR_ModelWriter_STL.cpp"
+)
+
+
+list (APPEND sources
+
+)
 
 
 add_library(lib3mf STATIC ${sources})
