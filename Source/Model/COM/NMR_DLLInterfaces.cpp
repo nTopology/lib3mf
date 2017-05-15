@@ -110,8 +110,8 @@ namespace NMR {
 					if (hResult != LIB3MF_OK) {
 						if (hResult != S_FALSE)
 							throw CNMRException_Windows(NMR_ERROR_COULDNOTINITITALIZECOM, hResult);
-						else
-							throw CNMRException(NMR_ERROR_COULDNOTINITITALIZECOM);
+						//else
+							//throw CNMRException(NMR_ERROR_COULDNOTINITITALIZECOM);
 					}
 				}
 #endif
