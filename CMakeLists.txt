@@ -294,10 +294,10 @@ else()
 endif()
 
 
-if(NOT DEFINED LIB3MF_TESTS)
-	set(LIB3MF_TESTS TRUE)
-endif()
-message("LIB3MF_TESTS ... " ${LIB3MF_TESTS})
+#if(NOT DEFINED LIB3MF_TESTS)
+#	set(LIB3MF_TESTS TRUE)
+#endif()
+#message("LIB3MF_TESTS ... " ${LIB3MF_TESTS})
 
 
 #########################################################
