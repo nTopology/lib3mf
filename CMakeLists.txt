@@ -309,7 +309,7 @@ else()
 	set(BUILD_NUMBER 0)
 endif()
 
-if (WIN32)
+if (FALSE AND WIN32)
 	message("BUILD_NUMBER ... " ${BUILD_NUMBER})
 	set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/Release/VersionInfo)
 	
