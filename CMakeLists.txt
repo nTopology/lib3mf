@@ -82,7 +82,6 @@ if (${MSVC})
   add_definitions(-DNOMINMAX)
 
   #add_definitions(/W3)
-
   # add_definitions(-D_CRT_NONSTDC_NO_DEPRECATE -D_CRT_SECURE_NO_WARNINGS)
   # set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
   # set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
@@ -257,7 +256,15 @@ set_target_properties(${PROJECT_NAME} PROPERTIES C_VISIBILITY_PRESET hidden)
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_VISIBILITY_PRESET hidden)
 set_target_properties(${PROJECT_NAME} PROPERTIES VISIBILITY_INLINES_HIDDEN ON)
 
-set(STARTUPPROJECT ${PROJECT_NAME})
+if(NOT USE_INCLUDED_ZLIB)
+  target_link_libraries(${PROJECT_NAME} PRIVATE zlibstatic)
+endif()
+
+if(NOT USE_INCLUDED_LIBZIP)
+    target_link_libraries(${PROJECT_NAME} PRIVATE zip)
+endif()
+
+#set(STARTUPPROJECT ${PROJECT_NAME})
 
 #########################################################
 if ((UNIX OR MINGW) AND LIB3MF_BUILD_SHARED)
@@ -272,6 +279,7 @@ else()
   # wd4996 masks the deprecated-warning
   target_compile_options(${PROJECT_NAME} PUBLIC "$<$<CONFIG:DEBUG>:/Od;/Ob0;/sdl;/W3;/WX;/FC;/wd4996>")
   target_compile_options(${PROJECT_NAME} PUBLIC "$<$<CONFIG:RELEASE>:/O2;/sdl;/WX;/Oi;/Gy;/FC;/wd4996>")
+  target_compile_definitions(${PROJECT_NAME} PUBLIC NOMINMAX)
 endif()
 
 # Static build usability (e.g. linking into shared libs)
