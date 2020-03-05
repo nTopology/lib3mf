@@ -96,7 +96,6 @@ if (${MSVC})
   add_definitions(-DNOMINMAX)
 
   #add_definitions(/W3)
-
   # add_definitions(-D_CRT_NONSTDC_NO_DEPRECATE -D_CRT_SECURE_NO_WARNINGS)
   # set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
   # set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
@@ -338,7 +337,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES C_VISIBILITY_PRESET hidden)
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_VISIBILITY_PRESET hidden)
 set_target_properties(${PROJECT_NAME} PROPERTIES VISIBILITY_INLINES_HIDDEN ON)
 
-set(STARTUPPROJECT ${PROJECT_NAME})
+#set(STARTUPPROJECT ${PROJECT_NAME})
 
 #########################################################
 if (${MSVC})
