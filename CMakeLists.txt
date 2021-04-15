@@ -202,8 +202,8 @@ if (UNIX OR MINGW)
   endif()
 else()
   # wd4996 masks the deprecated-warning
-  target_compile_options(${PROJECT_NAME} PUBLIC "$<$<CONFIG:DEBUG>:/Od;/Ob0;/sdl;/W3;/WX;/FC;/wd4996>")
-  target_compile_options(${PROJECT_NAME} PUBLIC "$<$<CONFIG:RELEASE>:/O2;/sdl;/WX;/Oi;/Gy;/FC;/wd4996>")
+  target_compile_options(${PROJECT_NAME} PRIVATE "$<$<CONFIG:DEBUG>:/Od;/Ob0;/sdl;/W3;/WX;/FC;/wd4996>")
+  target_compile_options(${PROJECT_NAME} PRIVATE "$<$<CONFIG:RELEASE>:/O2;/sdl;/WX;/Oi;/Gy;/FC;/wd4996>")
 endif()
 
 configure_file(lib3mf.pc.in lib3mf.pc @ONLY)
