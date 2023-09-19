@@ -4,7 +4,7 @@ if (USE_INCLUDED_LIBZIP)
 endif()
 
 if (USE_INCLUDED_ZLIB)
-  file(GLOB ZLIB_FILES ./Source/Libraries/zlib/*.c)
+  file(GLOB ZLIB_FILES ${ZLIB_INCLUDE_DIR}/*.c)
 endif()
 
 
