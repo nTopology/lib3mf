@@ -174,9 +174,9 @@ if (${MSVC})
   # Note the generator expression to limit the scope to c++ compiler, otherwise the RC compiler would get the arguments as well.
   # Works with ninja, but not with the VS build generators
   if (CMAKE_GENERATOR MATCHES "Ninja")
-    target_compile_options(${PROJECT_NAME} PUBLIC $<$<COMPILE_LANGUAGE:CXX>:-DNOMINMAX /Wv:18>)
+    target_compile_options(${PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-DNOMINMAX /Wv:18>)
   else()
-    target_compile_options(${PROJECT_NAME} PUBLIC -DNOMINMAX /Wv:18)
+    target_compile_options(${PROJECT_NAME} PRIVATE -DNOMINMAX /Wv:18)
   endif()
 endif()
 
@@ -342,9 +342,11 @@ set(STARTUPPROJECT ${PROJECT_NAME})
 
 #########################################################
 if (${MSVC})
+  # PRIVATE: these are lib3mf's own build settings (/WX in particular) and must
+  # not leak into targets that link against lib3mf.
   # wd4996 masks the deprecated-warning
-  target_compile_options(${PROJECT_NAME} PUBLIC "$<$<CONFIG:DEBUG>:/Od;/Ob0;/sdl;/W3;/WX;/FC;/wd4996>")
-  target_compile_options(${PROJECT_NAME} PUBLIC "$<$<CONFIG:RELEASE>:/O2;/sdl;/WX;/Oi;/Gy;/FC;/wd4996>")
+  target_compile_options(${PROJECT_NAME} PRIVATE "$<$<CONFIG:DEBUG>:/Od;/Ob0;/sdl;/W3;/WX;/FC;/wd4996>")
+  target_compile_options(${PROJECT_NAME} PRIVATE "$<$<CONFIG:RELEASE>:/O2;/sdl;/WX;/Oi;/Gy;/FC;/wd4996>")
 elseif ((UNIX OR MINGW) AND LIB3MF_BUILD_SHARED)
   # Uncomment the following to put the version info into the .so-file.
   set_target_properties(${PROJECT_NAME} PROPERTIES VERSION "${LIB3MF_VERSION_MAJOR}.${LIB3MF_VERSION_MINOR}.${LIB3MF_VERSION_MICRO}.${BUILD_NUMBER}")
