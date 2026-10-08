@@ -4,7 +4,20 @@ cmake_policy(SET CMP0054 NEW)
 cmake_policy(SET CMP0048 NEW)
 
 
-set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+# nTop: is lib3mf the top-level project (not embedded via add_subdirectory())?
+# Embedded builds must not install, package or change global state of the
+# parent project. Evaluated before project(), where CMAKE_CURRENT_SOURCE_DIR is
+# the directory of this file (PROJECT_IS_TOP_LEVEL needs CMake 3.21, this
+# project supports 3.10).
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+  set(LIB3MF_IS_TOP_LEVEL ON)
+else()
+  set(LIB3MF_IS_TOP_LEVEL OFF)
+endif()
+
+if(LIB3MF_IS_TOP_LEVEL)
+  set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+endif()
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
@@ -14,21 +27,14 @@ set(LIB3MF_VERSION_MAJOR 2)        # increase on every backward-compatibility br
 set(LIB3MF_VERSION_MINOR 5)        # increase on every backward compatible change of the API
 set(LIB3MF_VERSION_MICRO 0)        # increase on on every change that does not alter the API
 set(LIB3MF_VERSION_PRERELEASE "")  # denotes pre-release information of a version of lib3mf
-set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum OS X deployment version")
+if(LIB3MF_IS_TOP_LEVEL)
+  set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum OS X deployment version")
+endif()
 project(lib3mf
   VERSION ${LIB3MF_VERSION_MAJOR}.${LIB3MF_VERSION_MINOR}.${LIB3MF_VERSION_MICRO}
   DESCRIPTION "An implementation of the 3D Manufacturing Format file standard"
 )
 
-# nTop: only generate install rules / packaging when lib3mf is the top-level
-# project. When embedded via add_subdirectory() they would otherwise end up in
-# the parent's install tree and CPack configuration (PROJECT_IS_TOP_LEVEL needs
-# CMake 3.21, this project supports 3.10).
-if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
-  set(LIB3MF_IS_TOP_LEVEL ON)
-else()
-  set(LIB3MF_IS_TOP_LEVEL OFF)
-endif()
 option(LIB3MF_INSTALL "Generate install rules and CPack packaging for lib3mf" ${LIB3MF_IS_TOP_LEVEL})
 
 # macOS: ensure zlib includes <unistd.h> (affects ALL targets incl. Tests)
@@ -36,9 +42,11 @@ if(APPLE)
   add_compile_definitions(Z_HAVE_UNISTD_H=1)
 endif()
 
-find_program(buildcache_program buildcache)
-if(buildcache_program)
-  set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${buildcache_program}")
+if(LIB3MF_IS_TOP_LEVEL)
+  find_program(buildcache_program buildcache)
+  if(buildcache_program)
+    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${buildcache_program}")
+  endif()
 endif()
 
 set(CMAKE_INSTALL_BINDIR bin CACHE PATH "directory for installing binary files")
@@ -471,7 +479,9 @@ endif()
 
 #########################################################
 set(_lib3mf_tests_default ON)
-if(EMSCRIPTEN OR LIB3MF_BUILD_WASM)
+# Embedded: Tests/CMakeLists.txt calls enable_testing() and FORCE-sets LIBRESSL_*
+# cache entries, which would leak into the parent project. Opt in explicitly.
+if(NOT LIB3MF_IS_TOP_LEVEL OR EMSCRIPTEN OR LIB3MF_BUILD_WASM)
   set(_lib3mf_tests_default OFF)
 endif()
 option(LIB3MF_TESTS "Switch whether the tests of lib3mf should be build" ${_lib3mf_tests_default})
