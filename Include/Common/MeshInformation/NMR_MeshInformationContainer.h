@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -35,7 +35,6 @@ This class provides a memory container for holding the texture information state
 #define __NMR_MESHINFORMATIONCONTAINER
 
 #include "Common/MeshInformation/NMR_MeshInformationTypes.h"
-#include "Common/NMR_ErrorConst.h"
 #include "Common/NMR_Types.h"
 #include "Common/NMR_Local.h"
 

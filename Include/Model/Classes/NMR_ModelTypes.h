@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -71,9 +71,16 @@ namespace NMR {
 		MODELBEAMLATTICECAPMODE_HEMISPHERE = 1,
 		MODELBEAMLATTICECAPMODE_BUTT = 2
 	};
+
+	enum eModelBeamLatticeBallMode {
+		MODELBEAMLATTICEBALLMODE_NONE = 0,
+		MODELBEAMLATTICEBALLMODE_MIXED = 1,
+		MODELBEAMLATTICEBALLMODE_ALL = 2
+	};
+
 	typedef struct MODELMESHBEAM {
-		DWORD m_nIndices[2];
-		DOUBLE m_dRadius[2];	// the radius of end 0 or 1 of this beam
+		DWORD m_nIndices[2] = {0,0};
+		DOUBLE m_dRadius[2] = { 1.,1. };	// the radius of end 0 or 1 of this beam
 		eModelBeamLatticeCapMode m_eCapMode[2];
 		MODELMESHBEAM() {
 			m_eCapMode[0] = MODELBEAMLATTICECAPMODE_SPHERE;
@@ -81,9 +88,12 @@ namespace NMR {
 		}
 	} MODELMESHBEAM;
 
-	typedef struct {
-		FLOAT m_fFields[3][4];
-	} MODELTRANSFORM;
+	typedef struct MODELMESHBALL {
+		DWORD m_nIndex = 0;
+		DOUBLE m_dRadius = 1.;	// the radius of this ball
+		MODELMESHBALL() {
+		}
+	} MODELMESHBALL;
 
 	typedef struct {
 		BYTE m_Red;
@@ -99,14 +109,20 @@ namespace NMR {
 	} MODELMESHTEXTURE2D;
 
 	typedef struct {
+		DOUBLE m_dU;
+		DOUBLE m_dV;
+	} MODELTEXTURE2DCOORDINATE;
+
+	typedef struct {
 		MODELMESHCOLOR_SRGB m_Colors[3];
 	} MODELMESH_TRIANGLECOLOR_SRGB;
 
 #pragma pack()
 
-	typedef DWORD ModelResourceID;
-	typedef DWORD PackageResourceID;
-	typedef DWORD ModelResourceIndex;
+	typedef DWORD ModelPropertyID;
+	typedef DWORD ModelResourceID;	// Resource ID unique within a model, the id that you actually see as id in the xml
+	typedef DWORD UniqueResourceID;	// Resource ID unique within a package, handled internally to allow access to resources across models
+	typedef DWORD ModelResourceIndex;	//TODO: Add explanation
 
 	enum eModelUnit {
 		MODELUNIT_MICROMETER = 0,
@@ -117,19 +133,12 @@ namespace NMR {
 		MODELUNIT_METER = 5
 	};
 
-	enum eModelExtension {
-		MODELEXTENSION_CUSTOM = 0,
-		MODELEXTENSION_PROPERTIES = 1,
-		MODELEXTENSION_SLICES = 2,
-		MODELEXTENSION_MULTIPART = 3,
-		MODELEXTENSION_VOLUMETRIC = 4
-	};
-
 	enum eModelObjectType {
 		MODELOBJECTTYPE_OTHER = 0,
 		MODELOBJECTTYPE_MODEL = 1,
 		MODELOBJECTTYPE_SUPPORT = 2,
-		MODELOBJECTTYPE_SOLIDSUPPORT = 3
+		MODELOBJECTTYPE_SOLIDSUPPORT = 3,
+		MODELOBJECTTYPE_SURFACE = 4
 	};
 
 	enum eModelPropertyType {
@@ -146,9 +155,58 @@ namespace NMR {
 		MODELTEXTURETYPE_JPEG = 2,
 	};
 
-  typedef struct {
-    FLOAT m_fPosition[2];
-  } MODELSLICEVERTEX;
+	enum eModelTextureTileStyle {
+		MODELTEXTURETILESTYLE_WRAP = 0,
+		MODELTEXTURETILESTYLE_MIRROR = 1,
+		MODELTEXTURETILESTYLE_CLAMP = 2,
+		MODELTEXTURETILESTYLE_NONE = 3
+	};
+
+	enum eModelTextureFilter {
+		MODELTEXTUREFILTER_AUTO = 0,
+		MODELTEXTUREFILTER_LINEAR = 1,
+		MODELTEXTUREFILTER_NEAREST = 2
+	};
+
+	enum eModelBlendMethod {
+		MODELBLENDMETHOD_MIX = 0,
+		MODELBLENDMETHOD_MULTIPLY = 1,
+		MODELBLENDMETHOD_MASK = 2
+	};
+
+	enum eModelColorChannel {
+		MODELCOLORCHANNEL_RED = 0,
+		MODELCOLORCHANNEL_GREEN = 1,
+		MODELCOLORCHANNEL_BLUE = 2,
+		MODELCOLORCHANNEL_ALPHA = 3
+	};
+
+	enum class eModelCompositionMethod {
+		MODELCOMPOSITIONMETHOD_WEIGHTEDSUM = 0,
+		MODELCOMPOSITIONMETHOD_MULTIPLY= 1,
+		MODELCOMPOSITIONMETHOD_MIN = 2,
+		MODELCOMPOSITIONMETHOD_MAX = 3,
+		MODELCOMPOSITIONMETHOD_MASK = 4
+	};
+
+	enum class eModelCompositionSpace {
+		MODELCOMPOSITIONSPACE_RAW = 0,
+		MODELCOMPOSITIONSPACE_LINEARCOLOR = 1
+	};
+
+	typedef struct {
+		FLOAT m_fPosition[2];
+	} MODELSLICEVERTEX;
+
+	typedef struct {
+		DOUBLE m_dMixingRatio;
+		ModelPropertyID m_nPropertyID;
+	} MODELCOMPOSITECONSTITUENT;
+
+	typedef struct {
+		UniqueResourceID m_nUniqueResourceID;
+		eModelBlendMethod m_nMethod;
+	} MODELMULTIPROPERTYLAYER;
 }
 
 #endif // __NMR_MODELTYPES

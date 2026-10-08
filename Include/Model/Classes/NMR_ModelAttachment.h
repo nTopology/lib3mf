@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -42,28 +42,31 @@ NMR_ModelAttachment.h defines the Model Attachment Class.
 
 namespace NMR {
 
+	typedef std::shared_ptr <CModelAttachment> PModelAttachment;
+
 	class CModelAttachment {
 	private:
 		CModel * m_pModel;
 		PImportStream m_pStream;
-		std::wstring m_sPathURI;
-		std::wstring m_sRelationShipType;
+		std::string m_sPathURI;
+		std::string m_sRelationShipType;
 
 	public:
 		CModelAttachment() = delete;
-		CModelAttachment(_In_ CModel * pModel, _In_ const std::wstring sPathURI, _In_ const std::wstring sRelationShipType, _In_ PImportStream pStream);
+		CModelAttachment(_In_ CModel * pModel, _In_ const std::string sPathURI, _In_ const std::string sRelationShipType, _In_ PImportStream pStream);
 		~CModelAttachment();
 		
 		_Ret_notnull_ CModel * getModel();
-		std::wstring getPathURI();
-		std::wstring getRelationShipType();
+		std::string getPathURI();
+		std::string getRelationShipType();
 		PImportStream getStream ();
 
 		void setStream(_In_ PImportStream pStream);
-		void setRelationShipType(_In_ const std::wstring sRelationShipType);
+		void setRelationShipType(_In_ const std::string sRelationShipType);
+
+		PModelAttachment cloneIntoNewModel (_In_ CModel * pModel, _In_ nfBool bCloneMemory);
 	};
 
-	typedef std::shared_ptr <CModelAttachment> PModelAttachment;
 
 }
 

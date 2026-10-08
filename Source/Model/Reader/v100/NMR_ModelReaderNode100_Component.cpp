@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation (Original Author)
-Copyright (C) 2015 netfabb GmbH
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -43,14 +42,15 @@ Node Class.
 
 namespace NMR {
 
-	CModelReaderNode100_Component::CModelReaderNode100_Component(_In_ CModel * pModel, _In_ PModelReaderWarnings pWarnings)
+	CModelReaderNode100_Component::CModelReaderNode100_Component(_In_ CModel * pModel, _In_ PModelWarnings pWarnings)
 		: CModelReaderNode(pWarnings)
 	{
 		__NMRASSERT(pModel);
 		m_pModel = pModel;
 		m_ObjectID = 0;
 		m_bHasID = false;
-		m_sPath = L"";
+		m_sPath = "";
+		m_bHasTransform = false;
 		m_mTransform = fnMATRIX3_identity();
 
 		m_bHasPath = false;
@@ -68,20 +68,23 @@ namespace NMR {
 		parseContent(pXMLReader);
 	}
 
-	void CModelReaderNode100_Component::OnNSAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue, _In_z_ const nfWChar * pNameSpace)
+	void CModelReaderNode100_Component::OnNSAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue, _In_z_ const nfChar * pNameSpace)
 	{
 		__NMRASSERT(pAttributeName);
 		__NMRASSERT(pAttributeValue);
 		__NMRASSERT(pNameSpace);
 
-		if (wcscmp(pNameSpace, XML_3MF_NAMESPACE_PRODUCTIONSPEC) == 0) {
-			if (wcscmp(pAttributeName, XML_3MF_PRODUCTION_PATH) == 0) {
+		if (strcmp(pNameSpace, XML_3MF_NAMESPACE_PRODUCTIONSPEC) == 0) {
+			if (strcmp(pAttributeName, XML_3MF_PRODUCTION_PATH) == 0) {
 				if (m_bHasPath)
 					throw CNMRException(NMR_ERROR_DUPLICATEPATH);
 				m_sPath = pAttributeValue;
+				if (!fnStartsWithPathDelimiter(m_sPath)) {
+					m_pWarnings->addException(CNMRException(NMR_ERROR_PATH_NOT_ABSOLUTE), mrwInvalidOptionalValue);
+				}
 				m_bHasPath = true;
 			}
-			else if (wcscmp(pAttributeName, XML_3MF_PRODUCTION_UUID) == 0) {
+			else if (strcmp(pAttributeName, XML_3MF_PRODUCTION_UUID) == 0) {
 				if (m_UUID.get())
 					throw CNMRException(NMR_ERROR_DUPLICATEUUID);
 				m_UUID = std::make_shared<CUUID>(pAttributeValue);
@@ -93,20 +96,24 @@ namespace NMR {
 
 	}
 
-	void CModelReaderNode100_Component::OnAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue)
+	void CModelReaderNode100_Component::OnAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue)
 	{
 		__NMRASSERT(pAttributeName);
 		__NMRASSERT(pAttributeValue);
 
-		if (wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_COMPONENT_OBJECTID) == 0) {
+		if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_COMPONENT_OBJECTID) == 0) {
 			if (m_bHasID)
 				throw CNMRException(NMR_ERROR_DUPLICATECOMPONENTOBJECTID);
 
-			m_ObjectID = fnWStringToUint32(pAttributeValue);
+			m_ObjectID = fnStringToUint32(pAttributeValue);
 			m_bHasID = true;
 		}
-		else if (wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_COMPONENT_TRANSFORM) == 0) {
-			m_mTransform = fnMATRIX3_fromWideString(pAttributeValue);
+		else if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_COMPONENT_TRANSFORM) == 0) {
+			if (m_bHasTransform)
+				throw CNMRException(NMR_ERROR_DUPLICATETRANSFORM);
+
+			m_mTransform = fnMATRIX3_fromString(pAttributeValue);
+			m_bHasTransform = true;
 		}
 		else
 			m_pWarnings->addException(CNMRException(NMR_ERROR_NAMESPACE_INVALID_ATTRIBUTE), mrwInvalidOptionalValue);
@@ -120,12 +127,12 @@ namespace NMR {
 		
 		PPackageResourceID pRID; 
 		if (m_bHasPath) {
-			if (m_pModel->curPath() != m_pModel->rootPath())
+			if (m_pModel->currentPath() != m_pModel->rootPath())
 				throw CNMRException(NMR_ERROR_REFERENCESTOODEEP);
 			pRID = m_pModel->findPackageResourceID(m_sPath, m_ObjectID);
 		}
 		else {
-			pRID = m_pModel->findPackageResourceID(m_pModel->curPath(), m_ObjectID);
+			pRID = m_pModel->findPackageResourceID(m_pModel->currentPath(), m_ObjectID);
 		}
 		if (pRID.get())
 			return m_pModel->findObject(pRID->getUniqueID());

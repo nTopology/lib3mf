@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation (Original Author)
-Copyright (C) 2015 netfabb GmbH
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -36,23 +35,22 @@ A resources reader model node is a parser for the resources node of an XML Model
 #define __NMR_MODELREADERNODE100_RESOURCES
 
 #include "Model/Reader/NMR_ModelReaderNode.h"
-#include "Model/Reader/NMR_ModelReader_ColorMapping.h"
-#include "Model/Reader/NMR_ModelReader_TexCoordMapping.h"
+#include "Model/Classes/NMR_ModelTexture2DGroup.h"
 
 namespace NMR {
 
 	class CModelReaderNode100_Resources : public CModelReaderNode {
 	protected:
 		CModel * m_pModel;
-		std::wstring m_sPath;
+		std::string m_sPath;
 
-		PModelReader_ColorMapping m_pColorMapping;
-		PModelReader_TexCoordMapping m_pTexCoordMapping;
-		virtual void OnAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar *  pAttributeValue);
-		virtual void OnNSChildElement(_In_z_ const nfWChar * pChildName, _In_z_ const nfWChar * pNameSpace, _In_ CXmlReader * pXMLReader);
+		int m_nProgressCount;
+
+		virtual void OnAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar *  pAttributeValue);
+		virtual void OnNSChildElement(_In_z_ const nfChar * pChildName, _In_z_ const nfChar * pNameSpace, _In_ CXmlReader * pXMLReader);
 	public:
 		CModelReaderNode100_Resources() = delete;
-		CModelReaderNode100_Resources(_In_ CModel * pModel, _In_ PModelReaderWarnings pWarnings, _In_z_ const nfWChar *sPath);
+		CModelReaderNode100_Resources(_In_ CModel * pModel, _In_ PModelWarnings pWarnings, _In_z_ const std::string sPath, _In_ PProgressMonitor pProgressMonitor);
 		virtual void parseXML(_In_ CXmlReader * pXMLReader);
 	};
 

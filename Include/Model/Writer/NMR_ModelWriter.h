@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation (Original Author)
-Copyright (C) 2015 netfabb GmbH
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -35,24 +34,26 @@ A model writer exports the in memory represenation into the 3MF file.
 #ifndef __NMR_MODELWRITER
 #define __NMR_MODELWRITER
 
-#include "Model/Classes/NMR_Model.h" 
+#include "Model/Classes/NMR_Model.h"
+#include "Model/Classes/NMR_ModelContext.h"
 #include "Common/Platform/NMR_ExportStream.h" 
+#include "Common/3MF_ProgressMonitor.h" 
 #include <list>
 
 namespace NMR {
 
-	class CModelWriter {
+	class CModelWriter : public CModelContext{
 	private:
-			
-	protected:
-		PModel m_pModel;
+		nfUint32 m_nDecimalPrecision;
 	public:
 		CModelWriter() = delete;
 		CModelWriter(_In_ PModel pModel);
+		virtual ~CModelWriter() = default;
 
 		virtual void exportToStream(_In_ PExportStream pStream) = 0;
-		void addCustomContentType(_In_ std::wstring sExtension, _In_ std::wstring sContentType);
- 		void removeCustomContentType(_In_ std::wstring sExtension);
+
+		void SetDecimalPrecision(nfUint32);
+		nfUint32 GetDecimalPrecision();
 	};
 
 	typedef std::shared_ptr <CModelWriter> PModelWriter;

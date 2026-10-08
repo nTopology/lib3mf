@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -53,11 +52,14 @@ namespace NMR {
 	{
 		if (!pComponent)
 			throw CNMRException(NMR_ERROR_INVALIDPARAM);
-		
+
 		CModel * pModel = getModel();
 		CModelObject * pModelObject = pComponent->getObject();
 
 		if (pModel != pModelObject->getModel())
+			throw CNMRException(NMR_ERROR_MODELMISMATCH);
+
+		if (pComponent->getObject()->getPackageResourceID() == this->getPackageResourceID() )
 			throw CNMRException(NMR_ERROR_MODELMISMATCH);
 
 		m_Components.push_back(pComponent);
@@ -99,10 +101,31 @@ namespace NMR {
 		return true;
 	}
 
+	nfBool CModelComponentsObject::hasSlices(nfBool bRecursive)
+	{
+		if (bRecursive) {
+			if (this->getSliceStack().get())
+				return true;
+			for (auto iIterator = m_Components.begin(); iIterator != m_Components.end(); iIterator++) {
+				CModelObject * pObject = (*iIterator)->getObject();
+				__NMRASSERT(pObject);
+				if (pObject->hasSlices(bRecursive))
+					return true;
+			}
+			return false;
+		}
+		else {
+			return (this->getSliceStack().get() != nullptr);
+		}
+	}
+
 	nfBool CModelComponentsObject::isValidForSlices(const NMATRIX3& totalParentMatrix)
 	{
-		if (m_Components.size() == 0)
-			return true;
+		if (this->getSliceStack().get()) {
+			if (!fnMATRIX3_isplanar(totalParentMatrix)) {
+				return false;
+			}
+		}
 
 		for (auto iIterator = m_Components.begin(); iIterator != m_Components.end(); iIterator++) {
 			CModelObject * pObject = (*iIterator)->getObject();
@@ -115,4 +138,37 @@ namespace NMR {
 		return true;
 	}
 
-}
+	void CModelComponentsObject::calculateComponentDepthLevel(nfUint32 nLevel)
+	{
+		CModelObject::calculateComponentDepthLevel(nLevel);
+		for (auto iIterator = m_Components.begin(); iIterator != m_Components.end(); iIterator++) {
+			CModelObject * pObject = (*iIterator)->getObject();
+			pObject->calculateComponentDepthLevel(nLevel + 1);
+		}
+	}
+
+	void CModelComponentsObject::extendOutbox(_Out_ NOUTBOX3& vOutBox, _In_ const NMATRIX3 mAccumulatedMatrix)
+	{
+		for(auto & component : m_Components)
+		{
+			component->getObject()->extendOutbox(vOutBox, fnMATRIX3_multiply(mAccumulatedMatrix, component->getTransform()));
+		}
+	}
+
+	ResourceDependencies CModelComponentsObject::getDependencies()
+	{
+		ResourceDependencies dependencies;
+
+		for(auto & component : m_Components)
+		{
+			auto objectResource = component->getObject();
+
+			if (objectResource)
+			{
+				dependencies.push_back(objectResource->getPackageResourceID());
+			}
+		}
+
+		return dependencies;
+	}
+}  // namespace NMR

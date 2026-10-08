@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2017 Autodesk Inc.
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -32,36 +32,26 @@ Abstract:
 #include "Model/Reader/Slice1507/NMR_ModelReader_Slice1507_Vertices.h"
 #include "Model/Reader/Slice1507/NMR_ModelReader_Slice1507_Polygon.h"
 
-#include "Model/COM/NMR_COMInterface_ModelReader.h"
-#include "Model/Classes/NMR_ModelAttachment.h"
-#ifdef NMR_COM_NATIVE
-#include "Common/Platform/NMR_COM_Native.h"
-#include "Model/Reader/NMR_ModelReader_3MF_OPC.h"
-#else
-#include "Common/Platform/NMR_COM_Emulation.h"
-#include "Model/Reader/NMR_ModelReader_3MF_Native.h"
-#endif
-
 #include "Common/NMR_StringUtils.h"
 #include "Model/Classes/NMR_ModelConstants.h"
 
 namespace NMR {
-	void CModelReaderNode_Slices1507_Slice::OnAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue) {
-		if (wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_SLICEZTOP) == 0) {
+	void CModelReaderNode_Slices1507_Slice::OnAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue) {
+		if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_SLICEZTOP) == 0) {
 			if (m_bHasZTop)
 				throw CNMRException(NMR_ERROR_DUPLICATETEZTOP);
-			m_TopZ = fnWStringToFloat(pAttributeValue);
+			m_TopZ = fnStringToFloat(pAttributeValue);
 			m_bHasZTop = true;
 		}
 	}
 
-	void CModelReaderNode_Slices1507_Slice::OnNSChildElement(_In_z_ const nfWChar * pChildName, _In_z_ const nfWChar * pNameSpace, _In_ CXmlReader * pXMLReader) {
-		if (wcscmp(pNameSpace, XML_3MF_NAMESPACE_SLICESPEC) == 0) {
-			if (wcscmp(pChildName, XML_3MF_ELEMENT_SLICEVERTICES) == 0) {
+	void CModelReaderNode_Slices1507_Slice::OnNSChildElement(_In_z_ const nfChar * pChildName, _In_z_ const nfChar * pNameSpace, _In_ CXmlReader * pXMLReader) {
+		if (strcmp(pNameSpace, XML_3MF_NAMESPACE_SLICESPEC) == 0) {
+			if (strcmp(pChildName, XML_3MF_ELEMENT_SLICEVERTICES) == 0) {
 				PModelReaderNode_Slices1507_Vertices pXMLNode = std::make_shared<CModelReaderNode_Slices1507_Vertices>(m_Slice.get(), m_pWarnings);
 				pXMLNode->parseXML(pXMLReader);
 			}
-			else if (wcscmp(pChildName, XML_3MF_ELEMENT_SLICEPOLYGON) == 0) {
+			else if (strcmp(pChildName, XML_3MF_ELEMENT_SLICEPOLYGON) == 0) {
 				PModelReaderNode_Slices1507_Polygon pXMLNode = std::make_shared<CModelReaderNode_Slices1507_Polygon>(m_Slice.get(), m_pWarnings);
 				pXMLNode->parseXML(pXMLReader);
 			}
@@ -70,26 +60,23 @@ namespace NMR {
 		}
 	}
 
-	CModelReaderNode_Slices1507_Slice::CModelReaderNode_Slices1507_Slice(_In_ CSliceStack *pSliceStack, _In_ PModelReaderWarnings pWarnings) : CModelReaderNode(pWarnings) {
+	CModelReaderNode_Slices1507_Slice::CModelReaderNode_Slices1507_Slice(_In_ CModelSliceStack *pSliceStack, _In_ PModelWarnings pWarnings) : CModelReaderNode(pWarnings) {
 		m_pSliceStack = pSliceStack;
 		m_bHasZTop = false;
 	}
 
 	void CModelReaderNode_Slices1507_Slice::parseXML(_In_ CXmlReader * pXMLReader) {
-		m_Slice = std::make_shared<CSlice>();
-
 		// Parse name
 		parseName(pXMLReader);
 
 		// Parse attribute
 		parseAttributes(pXMLReader);
 
+		m_Slice = m_pSliceStack->AddSlice(m_TopZ);
+
 		// Parse Content
 		parseContent(pXMLReader);
 		if (!m_bHasZTop)
 			throw CNMRException(NMR_ERROR_MISSINGTEZTOP);
-
-		m_Slice->setTopZ(m_TopZ);
-		m_pSliceStack->addSlice(m_Slice);
 	}
 }

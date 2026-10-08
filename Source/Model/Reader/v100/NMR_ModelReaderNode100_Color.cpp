@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation (Original Author)
-Copyright (C) 2015 netfabb GmbH
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -42,12 +41,11 @@ NMR_ModelReaderNode100_Color.cpp implements the Model Reader Color Node Class.
 
 namespace NMR {
 
-	CModelReaderNode100_Color::CModelReaderNode100_Color(_In_ CModel * pModel, _In_ PModelReaderWarnings pWarnings)
+	CModelReaderNode100_Color::CModelReaderNode100_Color(_In_ CModel * pModel, _In_ PModelWarnings pWarnings)
 		: CModelReaderNode(pWarnings)
 	{
-
 		m_pModel = pModel;
-	    m_bHasColor = false;
+		m_bHasColor = false;
 		m_cColor = 0xffffffff;
 	}
 
@@ -64,15 +62,15 @@ namespace NMR {
 
 	}
 
-	void CModelReaderNode100_Color::OnAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue)
+	void CModelReaderNode100_Color::OnAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue)
 	{
 		__NMRASSERT(pAttributeName);
 		__NMRASSERT(pAttributeValue);
 
 		
-		if (wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_COLORS_COLOR) == 0) {
+		if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_COLORS_COLOR) == 0) {
 			// Convert to color and make a input and range check!
-			m_bHasColor = fnWStringToSRGBColor(pAttributeValue, m_cColor);
+			m_bHasColor = fnStringToSRGBColor(pAttributeValue, m_cColor);
 		}
 	}
 

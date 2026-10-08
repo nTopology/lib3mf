@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation (Original Author)
-Copyright (C) 2015 netfabb GmbH
+Copyright (C) 2018 3MF Consortium
 
 All rights reserved.
 
@@ -42,7 +41,7 @@ A builditem reader model node is a parser for the builditem node of an XML Model
 
 namespace NMR {
 
-	CModelReaderNode093_BuildItem::CModelReaderNode093_BuildItem(_In_ CModel * pModel, _In_ PModelReaderWarnings pWarnings)
+	CModelReaderNode093_BuildItem::CModelReaderNode093_BuildItem(_In_ CModel * pModel, _In_ PModelWarnings pWarnings)
 		: CModelReaderNode(pWarnings)
 	{
 		__NMRASSERT(pModel);
@@ -67,7 +66,7 @@ namespace NMR {
 		if (!m_bHasID)
 			throw CNMRException(NMR_ERROR_MISSINGBUILDITEMOBJECTID);
 
-		PPackageResourceID pID = m_pModel->findPackageResourceID(m_pModel->curPath(), m_ObjectID);
+		PPackageResourceID pID = m_pModel->findPackageResourceID(m_pModel->currentPath(), m_ObjectID);
 		if (!pID.get())
 			throw CNMRException(NMR_ERROR_COULDNOTFINDBUILDITEMOBJECT);
 		CModelObject * pObject = m_pModel->findObject(pID->getUniqueID());
@@ -80,22 +79,22 @@ namespace NMR {
 		m_pModel->addBuildItem(pBuildItem);
 	}
 
-	void CModelReaderNode093_BuildItem::OnAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue)
+	void CModelReaderNode093_BuildItem::OnAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue)
 	{
 		__NMRASSERT(pAttributeName);
 		__NMRASSERT(pAttributeValue);
 
-		if (wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_ITEM_OBJECTID) == 0) {
+		if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_ITEM_OBJECTID) == 0) {
 			if (m_bHasID)
 				throw CNMRException(NMR_ERROR_DUPLICATEBUILDITEMOBJECTID);
 
-			m_ObjectID = fnWStringToUint32(pAttributeValue);
+			m_ObjectID = fnStringToUint32(pAttributeValue);
 			m_ObjectID++;
 			m_bHasID = true;
 		}
 
-		if (wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_ITEM_TRANSFORM) == 0) {
-			m_mTransform = fnMATRIX3_fromWideString(pAttributeValue);
+		if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_ITEM_TRANSFORM) == 0) {
+			m_mTransform = fnMATRIX3_fromString(pAttributeValue);
 		}
 	}
 

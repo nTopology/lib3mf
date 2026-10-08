@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation (Original Author)
-Copyright (C) 2015 netfabb GmbH
+Copyright (C) 2018 3MF Consortium
 
 All rights reserved.
 
@@ -50,23 +49,21 @@ namespace NMR {
 	private:
 		CModel * m_pModel;
 		ModelResourceID m_nID;
-		std::wstring m_sThumbnail;
-		std::wstring m_sName;
-		std::wstring m_sType;
+		std::string m_sThumbnail;
+		std::string m_sName;
+		std::string m_sType;
 		nfBool m_bHasType;
 		PModelObject m_pObject;
 		PModelReader_ColorMapping m_pColorMapping;
-		PModelBaseMaterialResource m_pMaterialResource;
-		nfInt32 m_nColorID;
-		nfInt32 m_nMaterialID;
+		nfInt32 m_nObjectLevelColorID;
+		nfInt32 m_nObjectLevelMaterialID;
 
-		void createDefaultProperties();
 	protected:
-		virtual void OnAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue);
-		virtual void OnNSChildElement(_In_z_ const nfWChar * pChildName, _In_z_ const nfWChar * pNameSpace, _In_ CXmlReader * pXMLReader);
+		virtual void OnAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue);
+		virtual void OnNSChildElement(_In_z_ const nfChar * pChildName, _In_z_ const nfChar * pNameSpace, _In_ CXmlReader * pXMLReader);
 	public:
 		CModelReaderNode093_Object() = delete;
-		CModelReaderNode093_Object(_In_ CModel * pModel, _In_ PModelReader_ColorMapping pColorMapping, _In_ PModelBaseMaterialResource pMaterialResource, _In_ PModelReaderWarnings pWarnings);
+		CModelReaderNode093_Object(_In_ CModel * pModel, _In_ PModelReader_ColorMapping pColorMapping, _In_ PModelWarnings pWarnings);
 
 		virtual void parseXML(_In_ CXmlReader * pXMLReader);
 	};

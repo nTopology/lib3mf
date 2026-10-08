@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2017 Autodesk Inc.
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -46,11 +46,14 @@ namespace NMR {
 		CMesh * m_pMesh;
 		CModel * m_pModel;
 
-		virtual void OnAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue);
-		virtual void OnNSChildElement(_In_z_ const nfWChar * pChildName, _In_z_ const nfWChar * pNameSpace, _In_ CXmlReader * pXMLReader);
+		nfDouble m_dDefaultRadius;
+		eModelBeamLatticeCapMode m_eDefaultCapMode;
+
+		virtual void OnAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue);
+		virtual void OnNSChildElement(_In_z_ const nfChar * pChildName, _In_z_ const nfChar * pNameSpace, _In_ CXmlReader * pXMLReader);
 	public:
 		CModelReaderNode_BeamLattice1702_Beams() = delete;
-		CModelReaderNode_BeamLattice1702_Beams(_In_ CModel * pModel, _In_ CMesh * pMesh, _In_ PModelReaderWarnings pWarnings);
+		CModelReaderNode_BeamLattice1702_Beams(_In_ CModel * pModel, _In_ CMesh * pMesh, _In_ nfDouble defaultRadius, _In_ eModelBeamLatticeCapMode defaultCapMode, _In_ PModelWarnings pWarnings);
 
 		virtual void parseXML(_In_ CXmlReader * pXMLReader);
 	};

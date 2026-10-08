@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -37,9 +37,9 @@ model object.
 
 #include "Model/Classes/NMR_Model.h" 
 #include "Model/Classes/NMR_ModelResource.h" 
-#include "Model/Classes/NMR_ModelMetaData.h" 
-#include "Model/Classes/NMR_ModelDefaultProperty.h"
-#include "Model/Classes/NMR_ModelSliceResource.h"
+#include "Model/Classes/NMR_ModelAttachment.h"
+#include "Model/Classes/NMR_ModelMetaDataGroup.h" 
+#include "Model/Classes/NMR_ModelSliceStack.h"
 #include "Common/NMR_Types.h" 
 #include "Common/Math/NMR_Matrix.h" 
 
@@ -52,13 +52,17 @@ namespace NMR {
 
 	class CModelObject : public CModelResource { 
 	private:
-		std::wstring m_sName;
-		std::wstring m_sPartNumber;
+		std::string m_sName;
+		std::string m_sPartNumber;
+		PModelSliceStack m_pSliceStack;
+		eModelSlicesMeshResolution m_eSlicesMeshResolution;
+		PModelMetaDataGroup m_MetaDataGroup;
+
+		nfUint32 m_nComponentDepthLevel;
 
 	private:
 		PUUID m_UUID;
-		std::wstring m_sThumbnail;
-		PModelDefaultProperty m_pModelDefaultProperty;
+		PModelAttachment m_pThumbnailAttachment;
 		eModelObjectType m_ObjectType;
 	public:
 		CModelObject() = delete;
@@ -66,23 +70,26 @@ namespace NMR {
 
 		// setter/getter for name
 		// the name may be an arbitrary string
-		std::wstring getName();
-		void setName(_In_ std::wstring sName);
+		std::string getName();
+		void setName(_In_ std::string sName);
 
 		// setter/getter for part number
 		// the part number may be an arbitrary string
-		std::wstring getPartNumber();
-		void setPartNumber(_In_ std::wstring sPartNumber);
+		std::string getPartNumber();
+		void setPartNumber(_In_ std::string sPartNumber);
 
 		// Production Extension
 		PUUID uuid();
 		void setUUID(PUUID uuid);
 
+		// MetaDataGroup
+		PModelMetaDataGroup metaDataGroup();
+
 		// setter/getter for the object type
 		eModelObjectType getObjectType();
 		virtual void setObjectType(_In_ eModelObjectType ObjectType);
-		std::wstring getObjectTypeString();
-		nfBool setObjectTypeString(_In_ std::wstring sTypeString, _In_ nfBool bRaiseException);
+		std::string getObjectTypeString();
+		nfBool setObjectTypeString(_In_ std::string sTypeString, _In_ nfBool bRaiseException);
 
 		// Merge the object into a mesh object
 		virtual void mergeToMesh(_In_ CMesh * pMesh, _In_ const NMATRIX3 mMatrix);
@@ -91,15 +98,26 @@ namespace NMR {
 		// check, if the object is a valid object description
 		virtual nfBool isValid() = 0;
 
+		virtual nfBool hasSlices(nfBool bRecursive) = 0;
 		virtual nfBool isValidForSlices(const NMATRIX3& totalParentMatrix) = 0;
 
-		// Set/Get Default Property
-		void setDefaultProperty (_In_ PModelDefaultProperty pModelDefaultProperty);
-		PModelDefaultProperty getDefaultProperty();
+		void assignSliceStack(PModelSliceStack pSliceStackId);
+		PModelSliceStack getSliceStack();
+
+		void setSlicesMeshResolution(eModelSlicesMeshResolution eMeshResolution);
+		eModelSlicesMeshResolution slicesMeshResolution() const;
 
 		// Set/Get Thumbnail
-		void setThumbnail(_In_ std::wstring sThumbnail);
-		std::wstring getThumbnail();
+		void clearThumbnailAttachment();
+		void setThumbnailAttachment(_In_ PModelAttachment pThumbnailAttachment, bool bThrowIfIncorrect);
+		PModelAttachment getThumbnailAttachment();
+
+		// Calculates the component Depths
+		nfUint32 getComponentDepthLevel ();
+		void clearComponentDepthLevel();
+		virtual void calculateComponentDepthLevel (nfUint32 nLevel);
+
+		virtual void extendOutbox(_Out_ NOUTBOX3& vOutBox, _In_ const NMATRIX3 mAccumulatedMatrix) = 0;
 	};
 
 	typedef std::shared_ptr <CModelObject> PModelObject;

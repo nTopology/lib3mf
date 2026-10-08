@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -34,6 +34,7 @@ material resource object.
 
 #include "Common/NMR_Local.h"
 #include "Common/NMR_Types.h"
+#include "Model/Classes/NMR_ModelTypes.h"
 #include <string>
 #include <memory>
 
@@ -44,18 +45,21 @@ namespace NMR {
 
 	class CModelBaseMaterial {
 	private:
-		std::wstring m_sName;
+		ModelPropertyID m_nPropertyID;
+		std::string m_sName;
 		nfColor m_cDisplayColor;
 	public:
 		CModelBaseMaterial() = delete;
-		CModelBaseMaterial(_In_ const std::wstring sName, _In_ nfColor cDisplayColor);
+		CModelBaseMaterial(_In_ const std::string sName, _In_ nfColor cDisplayColor, _In_ ModelPropertyID nPropertyID);
 
 		nfColor getDisplayColor();
 		void setColor(_In_ nfColor cColor);
-		std::wstring getDisplayColorString();
+		std::string getDisplayColorString();
 
-		std::wstring getName();
-		void setName(_In_ const std::wstring sName);
+		std::string getName();
+		void setName(_In_ const std::string sName);
+
+		nfUint32 getPropertyID();
 	};
 
 	typedef std::shared_ptr <CModelBaseMaterial> PModelBaseMaterial;

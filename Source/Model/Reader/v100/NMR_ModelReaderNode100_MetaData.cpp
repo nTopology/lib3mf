@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation (Original Author)
-Copyright (C) 2015 netfabb GmbH
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -36,15 +35,19 @@ of an XML Model Stream.
 #include "Model/Reader/v100/NMR_ModelReaderNode100_MetaData.h"
 
 #include "Model/Classes/NMR_ModelConstants.h"
+#include "Common/NMR_StringUtils.h"
 #include "Common/NMR_Exception.h"
 #include "Common/NMR_Exception_Windows.h"
 
 namespace NMR {
 
-	CModelReaderNode100_MetaData::CModelReaderNode100_MetaData(_In_ PModelReaderWarnings pWarnings)
+	CModelReaderNode100_MetaData::CModelReaderNode100_MetaData(_In_ PModelWarnings pWarnings)
 		: CModelReaderNode(pWarnings)
 	{
-		// empty on purpose
+		m_sKey = "";
+		m_sValue = "";
+		m_bPreserve = true;
+		m_sType = "xs:string";
 	}
 
 	void CModelReaderNode100_MetaData::parseXML(_In_ CXmlReader * pXMLReader)
@@ -59,30 +62,44 @@ namespace NMR {
 		parseContent(pXMLReader);
 	}
 
-	void CModelReaderNode100_MetaData::OnAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue)
+	void CModelReaderNode100_MetaData::OnAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue)
 	{
 		__NMRASSERT(pAttributeName);
 		__NMRASSERT(pAttributeValue);
-		if (wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_METADATA_NAME) == 0) {
-			m_sName = std::wstring(pAttributeValue);
+		if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_METADATA_NAME) == 0) {
+			m_sKey = std::string(pAttributeValue);
+		} else if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_METADATA_PRESERVE) == 0) {
+			m_bPreserve = !(std::string(pAttributeValue) == "0");
+		} else if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_METADATA_TYPE) == 0) {
+			m_sType = std::string(pAttributeValue);
 		}
 
 	}
 
-	void CModelReaderNode100_MetaData::OnText(_In_z_ const nfWChar * pText, _In_ CXmlReader * pXMLReader)
+	void CModelReaderNode100_MetaData::OnText(_In_z_ const nfChar * pText, _In_ CXmlReader * pXMLReader)
 	{
 		__NMRASSERT(pText);
-		m_sValue += std::wstring(pText);
+		m_sValue += std::string(pText);
 	}
 
-	std::wstring CModelReaderNode100_MetaData::getName()
+	std::string CModelReaderNode100_MetaData::getKey()
 	{
-		return m_sName;
+		return m_sKey;
 	}
 
-	std::wstring CModelReaderNode100_MetaData::getValue()
+	std::string CModelReaderNode100_MetaData::getValue()
 	{
 		return m_sValue;
+	}
+
+	std::string CModelReaderNode100_MetaData::getType()
+	{
+		return m_sType;
+	}
+
+	nfBool CModelReaderNode100_MetaData::getPreserve()
+	{
+		return m_bPreserve;
 	}
 
 }

@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -33,12 +33,14 @@ NMR_OpcPackageReader.h defines an OPC Package reader in a portable way.
 #ifndef __NMR_OPCPACKAGEREADER
 #define __NMR_OPCPACKAGEREADER
 
+#include "Common/OPC/NMR_IOpcPackageReader.h"
 #include "Common/Platform/NMR_ImportStream.h"
 #include "Common/OPC/NMR_OpcPackagePart.h"
 #include "Common/OPC/NMR_OpcPackageTypes.h"
 #include "Common/OPC/NMR_OpcPackageRelationship.h"
-#include "Model/Reader/NMR_ModelReaderWarnings.h"
-#include "Libraries/libzip/zip.h"
+#include "Common/3MF_ProgressMonitor.h"
+#include "Common/NMR_ModelWarnings.h"
+#include "zip.h"
 #include <list>
 #include <vector>
 #include <map>
@@ -46,38 +48,38 @@ NMR_OpcPackageReader.h defines an OPC Package reader in a portable way.
 
 namespace NMR {
 
-	class COpcPackageReader {
+	class COpcPackageReader: public IOpcPackageReader {
 	protected:
-		PModelReaderWarnings m_pWarnings;
+		PModelWarnings m_pWarnings;
+		PProgressMonitor m_pProgressMonitor;
 
 		// ZIP Handling Variables
 		std::vector<nfByte> m_Buffer;
 		zip_error_t m_ZIPError;
 		zip_t * m_ZIParchive;
-		zip_source_t * m_ZIPsource;
-		std::map <std::wstring, nfUint64> m_ZIPEntries;		
-		std::map <std::wstring, POpcPackagePart> m_Parts;
+		std::map <std::string, nfUint64> m_ZIPEntries;
+		std::map <std::string, POpcPackagePart> m_Parts;
 
-		std::wstring m_relationShipExtension;
+		std::string m_relationShipExtension;
 		
-		std::map<std::wstring, std::wstring> m_ContentTypes;
+		std::map<std::string, std::string> m_ContentTypes;
 		std::list<POpcPackageRelationship> m_RootRelationships;
 
 		void releaseZIP();
 
-		PImportStream openZIPEntry(_In_ std::wstring sName);
+		PImportStream openZIPEntry(_In_ std::string sName);
 		PImportStream openZIPEntryIndexed(_In_ nfUint64 nIndex);
 
 		void readContentTypes();
 		void readRootRelationships();
 
 	public:
-		COpcPackageReader(_In_ PImportStream pImportStream, _In_ PModelReaderWarnings pWarnings);
+		COpcPackageReader(_In_ PImportStream pImportStream, _In_ PModelWarnings pWarnings, _In_ PProgressMonitor pProgressMonitor);
 		~COpcPackageReader();
 
-		_Ret_maybenull_ COpcPackageRelationship * findRootRelation(_In_ std::wstring sRelationType, _In_ nfBool bMustBeUnique);
-		POpcPackagePart createPart(_In_ std::wstring sPath);
-
+		_Ret_maybenull_ COpcPackageRelationship * findRootRelation(_In_ std::string sRelationType, _In_ nfBool bMustBeUnique) override;
+		POpcPackagePart createPart(_In_ std::string sPath) override;
+		nfUint64 getPartSize(_In_ std::string sPath) override;
 	};
 
 	typedef std::shared_ptr<COpcPackageReader> POpcPackageReader;

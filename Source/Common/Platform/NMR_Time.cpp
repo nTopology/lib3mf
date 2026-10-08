@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -41,11 +41,11 @@ namespace NMR {
 
 	nfTimeStamp fnGetUnixTime()
 	{
-    #ifdef _WIN32
+    #if defined(_WIN32) && !defined(__MINGW32__)
 		return _time64(nullptr);
     #else
-        return time(nullptr);
-    #endif // _WIN32
+        	return time(nullptr);
+    #endif
 	}
 
 }

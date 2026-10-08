@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation (Original Author)
-Copyright (C) 2015 netfabb GmbH
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -43,17 +42,18 @@ namespace NMR {
 		CModel * m_pModel;
 		ModelResourceID m_ObjectID;
 		nfBool m_bHasID;
+		nfBool m_bHasTransform;
 		NMATRIX3 m_mTransform;
 
 		nfBool m_bHasPath;
 		PUUID m_UUID;
-		std::wstring m_sPath;
+		std::string m_sPath;
 
-		virtual void OnNSAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue, _In_z_ const nfWChar * pNameSpace);
-		virtual void OnAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue);
+		virtual void OnNSAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue, _In_z_ const nfChar * pNameSpace);
+		virtual void OnAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue);
 	public:
 		CModelReaderNode100_Component() = delete;
-		CModelReaderNode100_Component(_In_ CModel * pModel, _In_ PModelReaderWarnings pWarnings);
+		CModelReaderNode100_Component(_In_ CModel * pModel, _In_ PModelWarnings pWarnings);
 
 		virtual void parseXML(_In_ CXmlReader * pXMLReader);
 

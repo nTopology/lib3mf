@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation (Original Author)
-Copyright (C) 2015 netfabb GmbH
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -36,37 +35,40 @@ A model reader node is an abstract base class for all XML nodes of a 3MF Model S
 #define __NMR_MODELREADERNODE
 
 #include "Model/Classes/NMR_Model.h"
-#include "Model/Reader/NMR_ModelReaderWarnings.h"
+#include "Common/NMR_ModelWarnings.h"
 #include "Common/Platform/NMR_XmlReader.h"
+#include "Common/3MF_ProgressMonitor.h"
 
 namespace NMR {
 
 	class CModelReaderNode {
 	private:
-		std::wstring m_sName;
+		std::string m_sName;
 		nfBool m_bParsedAttributes;
 		nfBool m_bParsedContent;
 		nfBool m_bIsEmptyElement;
 
 	protected:
-		PModelReaderWarnings m_pWarnings;
+		PProgressMonitor m_pProgressMonitor;
+		PModelWarnings m_pWarnings;
 
 		void parseName(_In_ CXmlReader * pXMLReader);
 		void parseAttributes(_In_ CXmlReader * pXMLReader);
 		void parseContent(_In_ CXmlReader * pXMLReader);
 
-		virtual void OnAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue);
-		virtual void OnText(_In_z_ const nfWChar * pText, _In_ CXmlReader * pXMLReader);
+		virtual void OnAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue);
+		virtual void OnText(_In_z_ const nfChar * pText, _In_ CXmlReader * pXMLReader);
 		virtual void OnEndElement(_In_ CXmlReader * pXMLReader);
 
-		virtual void OnNSAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue, _In_z_ const nfWChar * pNameSpace);
-		virtual void OnNSChildElement(_In_z_ const nfWChar * pChildName, _In_z_ const nfWChar * pNameSpace, _In_ CXmlReader * pXMLReader);
+		virtual void OnNSAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue, _In_z_ const nfChar * pNameSpace);
+		virtual void OnNSChildElement(_In_z_ const nfChar * pChildName, _In_z_ const nfChar * pNameSpace, _In_ CXmlReader * pXMLReader);
 	public:
 		CModelReaderNode() = delete;
-		CModelReaderNode(_In_ PModelReaderWarnings pWarnings);
+		CModelReaderNode(_In_ PModelWarnings pWarnings, _In_ PProgressMonitor pProgressMonitor = nullptr);
+		virtual ~CModelReaderNode() = default;
 
-		std::wstring getName();
-		PModelReaderWarnings getWarnings();
+		std::string getName();
+		PModelWarnings getWarnings() const;
 
 		virtual void parseXML(_In_ CXmlReader * pXMLReader) = 0;
 	};

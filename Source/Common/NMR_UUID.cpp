@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2017 Autodesk Inc.
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -36,41 +36,115 @@ NMR_UUID.cpp implements a datatype and functions to handle UUIDs
 #include "Common/NMR_Exception.h"
 
 #include <algorithm>
-#include <random>
+
+#ifdef GUID_WINDOWS
+#include <objbase.h>
+#include <iomanip>
+#endif
+
+#ifdef GUID_LIBUUID
+#include <uuid/uuid.h>
+#endif
+
+#ifdef GUID_CFUUID
+#include <CoreFoundation/CFUUID.h>
+#endif
+
+#ifdef GUID_CUSTOM
+#include <ctime>
+#endif
 
 namespace NMR
 {
+
+#ifdef GUID_CUSTOM
+	std::mutex CUUID::S_uuid_gen_mutex;
+	std::unique_ptr<std::mt19937> CUUID::S_mtwister;
+#endif
+
 	CUUID::CUUID()
 	{
-		std::mt19937 rng;
-		rng.seed(std::random_device()());
-		std::uniform_int_distribution<std::mt19937::result_type> distHexaDec(0, 15);
-		const nfWChar* hexaDec = L"0123456789abcdef";
-		nfWChar string[33];
-		for (int i = 0; i < 32; i++)
-			string[i] = hexaDec[distHexaDec(rng)];
-		string[32] = 0;
-		set(string);
-	}
+#ifdef GUID_WINDOWS
+		GUID guid;
+		if (CoCreateGuid(&guid) != S_OK)
+			throw CNMRException(NMR_ERROR_UUIDGENERATIONFAILED);
+		LPOLESTR str; 
+		if (StringFromCLSID(guid, &str) != S_OK)
+			throw CNMRException(NMR_ERROR_UUIDGENERATIONFAILED);
+		set(fnUTF16toUTF8(str).c_str());
+#endif
 
-	CUUID::CUUID(const nfWChar* pString)
-	{
-		set(pString);
+#ifdef GUID_LIBUUID
+		uuid_t uuid;
+		uuid_generate_random(uuid);
+		char s[37];
+		uuid_unparse(uuid, s);
+		set(std::string(s).c_str());
+#endif
+
+#ifdef GUID_CFUUID
+		auto newId = CFUUIDCreate(NULL);
+		auto bytes = CFUUIDGetUUIDBytes(newId);
+		CFRelease(newId);
+
+		char out[16*2+3+1+1];
+		out[36] = 0;
+		snprintf(out, 37, "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+			bytes.byte0, bytes.byte1, bytes.byte2, bytes.byte3,
+			bytes.byte4, bytes.byte5,
+			bytes.byte6, bytes.byte7,
+			bytes.byte8, bytes.byte9,
+			bytes.byte10, bytes.byte11, bytes.byte12, bytes.byte13, bytes.byte14, bytes.byte15);
+		set(out);
+#endif
+
+#ifdef GUID_CUSTOM
+		std::lock_guard<std::mutex> l_lock(S_uuid_gen_mutex);
+		if (!S_mtwister)
+		{
+			S_mtwister.reset(new std::mt19937);
+			std::random_device rand_dev;
+			// Prepare seed data
+			uint32_t l_seed_data[std::mt19937::state_size];
+			uint32_t l_cur_time = static_cast<uint32_t>(time(nullptr));
+			for (size_t i = 0; i < std::mt19937::state_size; ++i)
+			{
+				l_seed_data[i] = rand_dev() ^ l_cur_time;
+			}
+
+			// Init Mersenne Twister pseudo-random generator
+			std::seed_seq l_seed_seq(std::begin(l_seed_data), std::end(l_seed_data));
+			S_mtwister->seed(l_seed_seq);
+		}
+
+		// generation of a v4 UUID according to https://tools.ietf.org/html/rfc4122#section-4.4
+		std::uniform_int_distribution<std::mt19937::result_type> distHexaDec(0, 15);
+		std::uniform_int_distribution<std::mt19937::result_type> dist4(0, 4);
+		const nfChar* hexaDec = "0123456789abcdef";
+		nfChar string[33];
+		for (int i = 0; i < 32; i++)
+			string[i] = hexaDec[distHexaDec(*S_mtwister)];
+		string[12] = hexaDec[4]; // set version 4
+		string[16] = hexaDec[8 + dist4(*S_mtwister)];
+		string[32] = 0;
+
+		set(string);
+#endif
 	}
 
 	CUUID::CUUID(const nfChar* pString)
 	{
 		set(pString);
 	}
+
+	CUUID::CUUID(const std::string &string)
+	{
+		set(string.c_str());
+	}
 	
-	std::string CUUID::toString()
+	std::string CUUID::toString() const
 	{
 		return m_sUUID;
-	}
-
-	std::wstring CUUID::toUTF16String()
-	{
-		return fnUTF8toUTF16(m_sUUID);
 	}
 
 	bool InValid(char c)
@@ -92,10 +166,6 @@ namespace NMR
 		}
 		m_sUUID = str.substr(0, 8) + '-' + str.substr(8, 4) + '-' + str.substr(12, 4) + '-' + str.substr(16, 4) + '-' + str.substr(20, 12);
 		return true;
-	}
-	bool CUUID::set(const nfWChar* pString)
-	{
-		return set(fnUTF16toUTF8(pString).c_str());
 	}
 
 	CUUID& CUUID::operator=(const CUUID& uuid)

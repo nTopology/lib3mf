@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2017 Autodesk Inc.
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -37,25 +37,25 @@ NMR_ModelReaderNode_slice1507_Segment.h covers the slices of the private 3MF sli
 #include "Model/Classes/NMR_ModelComponent.h"
 #include "Model/Classes/NMR_ModelComponentsObject.h"
 #include "Model/Classes/NMR_ModelObject.h"
-#include "Common/MeshInformation/NMR_MeshInformation_Slices.h"
+#include "Model/Classes/NMR_ModelConstants_Slices.h"
 
 namespace NMR {
 	class CModelReaderNode_Slice1507_SliceRef : public CModelReaderNode {
 	private:
 		nfUint32 m_SliceStackId;
-		std::wstring m_Path;
+		std::string m_Path;
 
 	protected:
-		virtual void OnAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue);
-		virtual void OnNSChildElement(_In_z_ const nfWChar * pChildName, _In_z_ const nfWChar * pNameSpace, _In_ CXmlReader * pXMLReader);
+		virtual void OnAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue);
+		virtual void OnNSChildElement(_In_z_ const nfChar * pChildName, _In_z_ const nfChar * pNameSpace, _In_ CXmlReader * pXMLReader);
 
 	public:
 		CModelReaderNode_Slice1507_SliceRef() = delete;
-		CModelReaderNode_Slice1507_SliceRef(_In_ PModelReaderWarnings pWarnings);
+		CModelReaderNode_Slice1507_SliceRef(_In_ PModelWarnings pWarnings);
 
 		virtual void parseXML(_In_ CXmlReader * pXMLReader);
 		
-		std::wstring Path();
+		std::string Path();
 		nfUint32 SliceStackId();
 
 	};

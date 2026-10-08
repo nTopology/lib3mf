@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation (Original Author)
-Copyright (C) 2015 netfabb GmbH
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -35,7 +34,8 @@ A model reader reads in a model file and generates an in-memory representation o
 #include "Common/NMR_Exception.h" 
 #include "Common/NMR_Exception_Windows.h" 
 #include "Common/Platform/NMR_ImportStream.h" 
-
+#include "Common/NMR_SecureContext.h"
+#include "Common/3MF_ProgressMonitor.h"
 #include "Model/Classes/NMR_ModelObject.h" 
 #include "Model/Classes/NMR_ModelMeshObject.h" 
 #include "Model/Classes/NMR_ModelBuildItem.h" 
@@ -43,15 +43,8 @@ A model reader reads in a model file and generates an in-memory representation o
 namespace NMR {
 
 	CModelReader::CModelReader(_In_ PModel pModel)
+		:CModelContext(pModel)
 	{
-		if (!pModel.get())
-			throw CNMRException(NMR_ERROR_INVALIDPARAM);
-
-		m_pModel = pModel;
-		m_pWarnings = std::make_shared<CModelReaderWarnings>();
-
-		// Clear all legacy settings
-		m_pModel->clearAll();
 	}
 
 	void CModelReader::readFromMeshImporter(_In_ CMeshImporter * pImporter)
@@ -65,31 +58,26 @@ namespace NMR {
 		pImporter->loadMesh(pMesh.get(), nullptr);
 
 		// Add Single Mesh to Model 
-		PModelMeshObject pMeshObject = std::make_shared<CModelMeshObject>(m_pModel->generateResourceID(), m_pModel.get(), pMesh);
-		m_pModel->addResource(pMeshObject);
+		PModelMeshObject pMeshObject = std::make_shared<CModelMeshObject>(model()->generateResourceID(), model().get(), pMesh);
+		model()->addResource(pMeshObject);
 
 		// Add Build Item to Model 
-		PModelBuildItem pBuildItem = std::make_shared<CModelBuildItem>(pMeshObject.get(), m_pModel->createHandle());
-		m_pModel->addBuildItem(pBuildItem);
+		PModelBuildItem pBuildItem = std::make_shared<CModelBuildItem>(pMeshObject.get(), model()->createHandle());
+		model()->addBuildItem(pBuildItem);
 	}
 
-	PImportStream CModelReader::retrievePrintTicket(_Out_ std::wstring & sContentType)
+	PImportStream CModelReader::retrievePrintTicket(_Out_ std::string & sContentType)
 	{
 		sContentType = m_sPrintTicketContentType;
 		return m_pPrintTicketStream;
 	}
 
-	PModelReaderWarnings CModelReader::getWarnings()
-	{
-		return m_pWarnings;
-	}
-
-	void CModelReader::addRelationToRead(_In_ std::wstring sRelationShipType)
+	void CModelReader::addRelationToRead(_In_ std::string sRelationShipType)
 	{
 		m_RelationsToRead.insert(sRelationShipType);
 	}
 
-	void CModelReader::removeRelationToRead(_In_ std::wstring sRelationShipType)
+	void CModelReader::removeRelationToRead(_In_ std::string sRelationShipType)
 	{
 		m_RelationsToRead.erase(sRelationShipType);
 	}

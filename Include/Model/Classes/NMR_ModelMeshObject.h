@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -35,8 +35,10 @@ mesh object.
 #ifndef __NMR_MODELMESHOBJECT
 #define __NMR_MODELMESHOBJECT
 
-#include "Common/Mesh/NMR_Mesh.h" 
+#include "Common/Mesh/NMR_Mesh.h"
+#include "Model/Classes/NMR_ModelVolumeData.h"
 #include "Model/Classes/NMR_ModelObject.h"
+#include "Model/Classes/NMR_ModelTriangleSet.h"
 #include "Model/Classes/NMR_ModelMeshBeamLatticeAttributes.h"
 
 namespace NMR {
@@ -50,10 +52,12 @@ namespace NMR {
 	class CModelMeshObject : public CModelObject {
 	private:
 		PMesh m_pMesh; 
+
+		PModelVolumeData m_pVolumeData;
 		PModelMeshBeamLatticeAttributes m_pBeamLatticeAttributes;
 
-		PPackageResourceID m_pSliceStackId;
-		eModelSlicesMeshResolution m_eSlicesMeshResolution;
+		std::map<std::string, PModelTriangleSet> m_TriangleSetMap;
+		std::vector<PModelTriangleSet> m_TriangleSets;
 
 	public:
 		CModelMeshObject() = delete;
@@ -64,28 +68,38 @@ namespace NMR {
 		_Ret_notnull_ CMesh * getMesh ();
 		void setMesh (_In_ PMesh pMesh);
 
-		virtual void mergeToMesh(_In_ CMesh * pMesh, _In_ const NMATRIX3 mMatrix);
+		void mergeToMesh(_In_ CMesh * pMesh, _In_ const NMATRIX3 mMatrix) override;
 
-		void setObjectType(_In_ eModelObjectType ObjectType);
+		void setObjectType(_In_ eModelObjectType ObjectType) override;
 
 		// check, if the object is a valid object description
-		virtual nfBool isValid();
+		nfBool isValid() override;
 
-		virtual nfBool isValidForSlices(const NMATRIX3& totalParentMatrix);
+		nfBool hasSlices(nfBool bRecursive) override;
+		nfBool isValidForSlices(const NMATRIX3& totalParentMatrix) override;
+
+		virtual nfBool isValidForBeamLattices();
 
 		// check, if the mesh is manifold and oriented
 		virtual nfBool isManifoldAndOriented();
 
-		_Ret_notnull_ CModelMeshBeamLatticeAttributes * getBeamLatticeAttributes();
+		_Ret_notnull_ PModelMeshBeamLatticeAttributes getBeamLatticeAttributes();
 		void setBeamLatticeAttributes(_In_ PModelMeshBeamLatticeAttributes pBeamLatticeAttributes);
 
-		void setSliceStackId(PPackageResourceID nSliceStackId);
-		PPackageResourceID getSliceStackId();
+		void extendOutbox(_Out_ NOUTBOX3& vOutBox, _In_ const NMATRIX3 mAccumulatedMatrix) override;
 
-		void setSlicesMeshResolution(eModelSlicesMeshResolution eMeshResolution);
-		eModelSlicesMeshResolution slicesMeshResolution() const;
+		_Ret_notnull_ PModelVolumeData getVolumeData();
+		void setVolumeData(_In_ PModelVolumeData pVolumeData);
 
-		ModelResourceID calculateDefaultPropertyID() const;
+		ResourceDependencies getDependencies() override;
+		void deleteTriangleSet (_In_ CModelTriangleSet * pTriangleSet);
+		PModelTriangleSet addTriangleSet(const std::string& sIdentifier, const std::string& sName);
+		PModelTriangleSet addTriangleSet(PModelTriangleSet pModelTriangleSet);
+		PModelTriangleSet findTriangleSet (const std::string & sIdentifier);
+		uint32_t getTriangleSetCount();
+		PModelTriangleSet getTriangleSet(const uint32_t nIndex);
+		
+
 	};
 
 	typedef std::shared_ptr <CModelMeshObject> PModelMeshObject;

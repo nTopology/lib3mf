@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -35,7 +35,7 @@ metadata, and can be attached to any 3MF model node.
 #ifndef __NMR_MODELMETADATA
 #define __NMR_MODELMETADATA
 
-#include "Common/NMR_Types.h" 
+#include "Common/NMR_Types.h"
 #include "Common/Platform/NMR_SAL.h"
 #include <memory>
 #include <map>
@@ -45,14 +45,31 @@ namespace NMR {
 
 	class CModelMetaData {
 	private:
-		std::wstring m_sName;
-		std::wstring m_sValue;
+		std::string m_sName;
+		std::string m_sNameSpace;
+		std::string m_sValue;
+		std::string m_sType;
+		nfBool m_bPreserve;
 	public:
 		CModelMetaData() = delete;
-		CModelMetaData(_In_ std::wstring sName, _In_ std::wstring sValue);
+		CModelMetaData(_In_ std::string sNameSpace, _In_ std::string sName, _In_ std::string sValue,
+			_In_ std::string sType, _In_ nfBool bPreserve);
 
-		std::wstring getName();
-		std::wstring getValue();
+		std::string getName();
+		std::string getNameSpace();
+		std::string getValue();
+		std::string getType();
+		nfBool getPreserve();
+
+		void setName(std::string );
+		void setNameSpace(std::string);
+		void setValue(std::string);
+		void setType(std::string);
+		void setPreserve(nfBool);
+
+		std::string getKey();
+		
+		static bool isValidNamespaceAndName(std::string sNameSpace, std::string sName);
 	};
 
 	typedef std::shared_ptr <CModelMetaData> PModelMetaData;

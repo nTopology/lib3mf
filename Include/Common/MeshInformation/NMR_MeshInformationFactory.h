@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -34,9 +34,7 @@ It allows a dynamic creation of different Classes of Information.
 #ifndef __NMR_MESHINFORMATIONFACTORY
 #define __NMR_MESHINFORMATIONFACTORY
 
-#include "Common/MeshInformation/NMR_MeshInformation_NodeColors.h"
-#include "Common/MeshInformation/NMR_MeshInformation_TexCoords.h"
-#include "Common/MeshInformation/NMR_MeshInformation_BaseMaterials.h"
+#include "Common/MeshInformation/NMR_MeshInformation_Properties.h"
 
 namespace NMR {
 

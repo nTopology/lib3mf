@@ -1,7 +1,7 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
+
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -34,7 +34,7 @@ resource object.
 
 #include "Model/Classes/NMR_Model.h" 
 #include "Model/Classes/NMR_ModelResource.h" 
-#include "Common/NMR_Exception.h" 
+#include "Common/NMR_Exception.h"
 
 namespace NMR {
 
@@ -43,7 +43,8 @@ namespace NMR {
 		if (!pModel)
 			throw CNMRException(NMR_ERROR_INVALIDPARAM);
 		m_pModel = pModel;
-		m_sResourceID = m_pModel->generatePackageResourceID(pModel->curPath(), sResourceID);
+		m_pPackageResourceID = m_pModel->generatePackageResourceID(pModel->currentPath(), sResourceID);
+		m_bHasResourceIndexMap = false;
 	}
 
 	CModelResource::~CModelResource()
@@ -51,14 +52,67 @@ namespace NMR {
 		m_pModel = NULL;
 	}
 
-	PPackageResourceID CModelResource::getResourceID()
+	CModel * CModelResource::Model()
 	{
-		return m_sResourceID;
+		return m_pModel;
+	}
+
+	PPackageResourceID CModelResource::getPackageResourceID()
+	{
+		return m_pPackageResourceID;
+	}
+
+	void CModelResource::setPackageResourceID(PPackageResourceID pID)
+	{
+		if (m_pModel)
+		{
+			m_pModel->updateUniqueResourceID(m_pPackageResourceID->getUniqueID(), pID->getUniqueID());
+		}
+		m_pPackageResourceID = pID;
+		
 	}
 
 	_Ret_notnull_ CModel * CModelResource::getModel()
 	{
 		return m_pModel;
+	}
+
+    void CModelResource::setModel(CModel* pModel)
+	{
+		m_pModel = pModel;
+	}
+
+	ResourceDependencies CModelResource::getDependencies()
+	{
+		return {};
+	}
+
+	void CModelResource::clearResourceIndexMap()
+	{
+		m_ResourceIndexMap.clear();
+		m_bHasResourceIndexMap = false;
+	}
+
+	void CModelResource::buildResourceIndexMap()
+	{
+		clearResourceIndexMap();
+		m_bHasResourceIndexMap = true;
+	}
+
+	nfBool CModelResource::hasResourceIndexMap()
+	{
+		return m_bHasResourceIndexMap;
+	}
+
+	bool CModelResource::mapResourceIndexToPropertyID(_In_ ModelResourceIndex nPropertyIndex, _Out_ ModelPropertyID & nPropertyID)
+	{
+		if (nPropertyIndex < m_ResourceIndexMap.size()) {
+			nPropertyID = m_ResourceIndexMap[nPropertyIndex];
+			return true;
+		}
+
+		nPropertyID = 0;
+		return false;
 	}
 
 }

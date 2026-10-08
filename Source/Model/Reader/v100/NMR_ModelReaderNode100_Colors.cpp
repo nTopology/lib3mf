@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation (Original Author)
-Copyright (C) 2015 netfabb GmbH
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -35,9 +34,9 @@ NMR_ModelReaderNode100_Colors.cpp implements the Model Reader Color Group Class.
 #include "Model/Reader/v100/NMR_ModelReaderNode100_Color.h"
 
 #include "Model/Classes/NMR_ModelConstants.h"
-#include "Model/Classes/NMR_ModelMeshObject.h"
 #include "Model/Classes/NMR_ModelResource.h"
 #include "Model/Classes/NMR_Model.h"
+#include "Model/Classes/NMR_ModelColorGroup.h"
 
 #include "Common/NMR_StringUtils.h"
 #include "Common/NMR_Exception.h"
@@ -45,18 +44,14 @@ NMR_ModelReaderNode100_Colors.cpp implements the Model Reader Color Group Class.
 
 namespace NMR {
 
-	CModelReaderNode100_Colors::CModelReaderNode100_Colors(_In_ CModel * pModel, _In_ PModelReaderWarnings pWarnings, _In_ PModelReader_ColorMapping pColorMapping)
+	CModelReaderNode100_Colors::CModelReaderNode100_Colors(_In_ CModel * pModel, _In_ PModelWarnings pWarnings)
 		: CModelReaderNode(pWarnings)
 	{
-		if (!pColorMapping.get())
-			throw CNMRException(NMR_ERROR_INVALIDPARAM);
-
 		// Initialize variables
 		m_nID = 0;
 		m_nColorIndex = 0;
 
 		m_pModel = pModel;
-		m_pColorMapping = pColorMapping;
 	}
 
 	void CModelReaderNode100_Colors::parseXML(_In_ CXmlReader * pXMLReader)
@@ -71,36 +66,43 @@ namespace NMR {
 		if (m_nID == 0)
 			throw CNMRException(NMR_ERROR_MISSINGMODELRESOURCEID);
 
+		// Create Resource
+		m_pColorGroup = std::make_shared<CModelColorGroupResource>(m_nID, m_pModel);
+
+		m_pModel->addResource(m_pColorGroup);
+
+
 		// Parse Content
 		parseContent(pXMLReader);
 
 	}
 
-	void CModelReaderNode100_Colors::OnAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue)
+	void CModelReaderNode100_Colors::OnAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue)
 	{
 		__NMRASSERT(pAttributeName);
 		__NMRASSERT(pAttributeValue);
 
-		if (wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_COLORS_ID) == 0) {
+		if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_COLORS_ID) == 0) {
 			if (m_nID != 0)
 				throw CNMRException(NMR_ERROR_DUPLICATERESOURCEID);
 
 			// Convert to integer and make a input and range check!
-			m_nID = fnWStringToUint32(pAttributeValue);
+			m_nID = fnStringToUint32(pAttributeValue);
 		}
 		else
 			m_pWarnings->addException(CNMRException(NMR_ERROR_NAMESPACE_INVALID_ATTRIBUTE), mrwInvalidOptionalValue);
 	}
 
-	void CModelReaderNode100_Colors::OnNSChildElement(_In_z_ const nfWChar * pChildName, _In_z_ const nfWChar * pNameSpace, _In_ CXmlReader * pXMLReader)
+	void CModelReaderNode100_Colors::OnNSChildElement(_In_z_ const nfChar * pChildName, _In_z_ const nfChar * pNameSpace, _In_ CXmlReader * pXMLReader)
 	{
-		if (wcscmp(pNameSpace, XML_3MF_NAMESPACE_MATERIALSPEC) == 0) {
-			if (wcscmp(pChildName, XML_3MF_ELEMENT_COLOR) == 0) {
+		if (strcmp(pNameSpace, XML_3MF_NAMESPACE_MATERIALSPEC) == 0) {
+			if (strcmp(pChildName, XML_3MF_ELEMENT_COLOR) == 0) {
 				PModelReaderNode100_Color pXMLNode = std::make_shared<CModelReaderNode100_Color>(m_pModel, m_pWarnings);
 				pXMLNode->parseXML(pXMLReader);
 
-				m_pColorMapping->registerColor(m_nID, m_nColorIndex, pXMLNode->getColor());
-				m_nColorIndex++;
+				if (m_pColorGroup.get() != nullptr) {
+					m_pColorGroup->addColor(pXMLNode->getColor());
+				}
 
 				if (m_nColorIndex > XML_3MF_MAXRESOURCEINDEX)
 					throw CNMRException(NMR_ERROR_INVALIDINDEX);

@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -37,7 +37,7 @@ NMR_OpcPackagePart.cpp implements an OPC Package Part in a portable way.
 
 namespace NMR {
 
-	COpcPackagePart::COpcPackagePart(_In_ std::wstring sURI, _In_ PExportStream pExportStream)
+	COpcPackagePart::COpcPackagePart(_In_ std::string sURI, _In_ PExportStream pExportStream)
 	{
 		if (pExportStream.get() == nullptr)
 			throw CNMRException(NMR_ERROR_INVALIDPARAM);
@@ -49,7 +49,7 @@ namespace NMR {
 	}
 
 
-	COpcPackagePart::COpcPackagePart(_In_ std::wstring sURI, _In_ PImportStream pImportStream)
+	COpcPackagePart::COpcPackagePart(_In_ std::string sURI, _In_ PImportStream pImportStream)
 	{
 		if (pImportStream.get() == nullptr)
 			throw CNMRException(NMR_ERROR_INVALIDPARAM);
@@ -60,8 +60,24 @@ namespace NMR {
 		m_pImportStream = pImportStream;
 	}
 
+	COpcPackagePart::COpcPackagePart(COpcPackagePart const & cp, PExportStream pExportStream) {
+		if (pExportStream.get() == nullptr)
+			throw CNMRException(NMR_ERROR_INVALIDPARAM);
+		m_sURI = cp.m_sURI;
+		m_Relationships = cp.m_Relationships;
+		m_pExportStream = pExportStream;
+	}
 
-	std::wstring COpcPackagePart::getURI()
+	COpcPackagePart::COpcPackagePart(COpcPackagePart const & cp, PImportStream pImportStream) {
+		if (pImportStream.get() == nullptr)
+			throw CNMRException(NMR_ERROR_INVALIDPARAM);
+		m_sURI = cp.m_sURI;
+		m_Relationships = cp.m_Relationships;
+		m_pImportStream = pImportStream;
+	}
+
+
+	std::string COpcPackagePart::getURI()
 	{
 		return m_sURI;
 	}
@@ -80,19 +96,23 @@ namespace NMR {
 		return m_pImportStream;
 	}
 
-	POpcPackageRelationship COpcPackagePart::addRelationship(_In_ std::wstring sID, _In_ std::wstring sType, _In_ std::wstring sURI)
+	POpcPackageRelationship COpcPackagePart::addRelationship(_In_ std::string sID, _In_ std::string sType, _In_ std::string sURI)
 	{
 		POpcPackageRelationship pRelationship = std::make_shared<COpcPackageRelationship>(sID, sType, sURI);
-		for (auto iRelationShip : m_Relationships) {
-			if ((iRelationShip->getTargetPartURI() == sURI) && (iRelationShip->getType() == sType) ) {
+		auto range = m_Relationships.equal_range(sURI);
+		for (auto foundRelationShip = range.first; foundRelationShip != range.second; foundRelationShip++) {
+			if (foundRelationShip->second->getType() == sType) {
 				throw CNMRException(NMR_ERROR_DUPLICATE_RELATIONSHIP);
 			}
-			// Include this again for 
-			//if (iRelationShip->getType() == sType) {
-			//	throw CNMRException(NMR_ERROR_DUPLICATE_RELATIONSHIP);
-			//}
 		}
-		m_Relationships.push_back(pRelationship);
+
+		// for (auto iRelationShip : m_Relationships) {
+		//	// Include this again for 
+		//	//if (iRelationShip->getType() == sType) {
+		//	//	throw CNMRException(NMR_ERROR_DUPLICATE_RELATIONSHIP);
+		//	//}
+		//}
+		m_Relationships.insert(std::make_pair(sURI, pRelationship));
 		return pRelationship;
 	}
 
@@ -101,7 +121,7 @@ namespace NMR {
 		return m_Relationships.size() > 0;
 	}
 
-	std::list<POpcPackageRelationship> COpcPackagePart::getRelationShips()
+	std::multimap<std::string, POpcPackageRelationship>& COpcPackagePart::getRelationShips()
 	{
 		return m_Relationships;
 	}
@@ -115,12 +135,12 @@ namespace NMR {
 
 		pXMLWriter->WriteStartDocument();
 		pXMLWriter->WriteStartElement(nullptr, OPC_RELS_RELATIONSHIP_CONTAINER, nullptr);
-		pXMLWriter->WriteAttributeString(nullptr, L"xmlns", nullptr, OPCPACKAGE_SCHEMA_RELATIONSHIPS);
+		pXMLWriter->WriteAttributeString(nullptr, "xmlns", nullptr, OPCPACKAGE_SCHEMA_RELATIONSHIPS);
 
 		auto iIterator = m_Relationships.begin();
 
 		while (iIterator != m_Relationships.end()) {
-			POpcPackageRelationship pRelationShip = *iIterator;
+			POpcPackageRelationship pRelationShip = iIterator->second;
 			pRelationShip->writeToXML(pXMLWriter.get());
 			iIterator++;
 		}
@@ -128,5 +148,4 @@ namespace NMR {
 		pXMLWriter->WriteFullEndElement();
 		pXMLWriter->WriteEndDocument();
 	}
-
 }

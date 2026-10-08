@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation (Original Author)
-Copyright (C) 2015 netfabb GmbH
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -36,6 +35,7 @@ A builditem reader model node is a parser for the builditem node of an XML Model
 #define __NMR_MODELREADERNODE100_BUILDITEM
 
 #include "Model/Reader/NMR_ModelReaderNode.h"
+#include "Model/Classes/NMR_ModelMetaDataGroup.h"
 
 namespace NMR {
 
@@ -44,23 +44,25 @@ namespace NMR {
 		CModel * m_pModel;
 		nfInt32 m_ObjectID;
 		nfBool m_bHasID;
-		std::wstring m_sPartNumber;
+		std::string m_sPartNumber;
+		bool m_bHasTransform;
 		NMATRIX3 m_mTransform;
 
 		// Production Extension
-		std::wstring m_sPath;
+		std::string m_sPath;
 		PUUID m_UUID;
 
 		bool m_hasPath;
+		PModelMetaDataGroup m_MetaDataGroup;
 	protected:
-		virtual void OnAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue);
-		virtual void OnNSAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue, _In_z_ const nfWChar * pNameSpace);
+		virtual void OnAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue);
+		virtual void OnNSAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue, _In_z_ const nfChar * pNameSpace);
+		virtual void OnNSChildElement(_In_z_ const nfChar * pChildName, _In_z_ const nfChar * pNameSpace, _In_ CXmlReader * pXMLReader);
 	public:
 		CModelReaderNode100_BuildItem() = delete;
-		CModelReaderNode100_BuildItem(_In_ CModel * pModel, _In_ PModelReaderWarnings pWarnings);
+		CModelReaderNode100_BuildItem(_In_ CModel * pModel, _In_ PModelWarnings pWarnings);
 
 		virtual void parseXML(_In_ CXmlReader * pXMLReader);
-		std::wstring getPartNumber ();
 	};
 
 }

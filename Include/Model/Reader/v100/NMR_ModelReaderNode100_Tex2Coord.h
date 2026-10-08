@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation (Original Author)
-Copyright (C) 2015 netfabb GmbH
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -46,24 +45,20 @@ namespace NMR {
 		CModel * m_pModel;
 
 		nfBool m_bHasU;
-		nfFloat m_fU;
-		
 		nfBool m_bHasV;
-		nfFloat m_fV;
+		MODELTEXTURE2DCOORDINATE m_sUVCoordinate;
 		
 	protected:
-		virtual void OnAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue);
+		virtual void OnAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue);
 	public:
 		CModelReaderNode100_Tex2Coord() = delete;
-		CModelReaderNode100_Tex2Coord(_In_ CModel * pModel, _In_ PModelReaderWarnings pWarnings);
+		CModelReaderNode100_Tex2Coord(_In_ CModel * pModel, _In_ PModelWarnings pWarnings);
 
 		virtual void parseXML(_In_ CXmlReader * pXMLReader);
 
 		nfBool hasU();
-		nfFloat getU();
-		
 		nfBool hasV();
-		nfFloat getV();
+		MODELTEXTURE2DCOORDINATE getUV();
 	};
 
 	typedef std::shared_ptr <CModelReaderNode100_Tex2Coord> PModelReaderNode100_Tex2Coord;

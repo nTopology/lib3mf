@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -67,6 +66,11 @@ namespace NMR {
 		return m_pObject;
 	}
 
+	CModel* CModelComponent::getModel()
+	{
+		return m_pObject->getModel();
+	}
+
 	NMATRIX3 CModelComponent::getTransform()
 	{
 		return m_mTransform;
@@ -77,19 +81,14 @@ namespace NMR {
 		m_mTransform = mTransform;
 	}
 
-	PackageResourceID CModelComponent::getObjectID()
-	{
-		return m_pObject->getResourceID()->getUniqueID();
-	}
-
 	nfBool CModelComponent::hasTransform()
 	{
 		return (!fnMATRIX3_isIdentity(m_mTransform));
 	}
 
-	std::wstring CModelComponent::getTransformString()
+	std::string CModelComponent::getTransformString()
 	{
-		return fnMATRIX3_toWideString(m_mTransform);
+		return fnMATRIX3_toString(m_mTransform);
 	}
 
 	PUUID CModelComponent::uuid()

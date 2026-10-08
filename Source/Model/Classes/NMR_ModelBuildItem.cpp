@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -33,8 +32,8 @@ build item.
 
 --*/
 
-#include "Model/Classes/NMR_ModelBuildItem.h" 
-#include "Common/NMR_Exception.h" 
+#include "Model/Classes/NMR_ModelBuildItem.h"
+#include "Common/NMR_Exception.h"
 #include <sstream>
 
 namespace NMR {
@@ -46,6 +45,7 @@ namespace NMR {
 		m_pObject = pObject;
 		m_mTransform = fnMATRIX3_identity ();
 		m_nHandle = nHandle;
+		m_MetaDataGroup = std::make_shared<CModelMetaDataGroup>();
 
 		setUUID(std::make_shared<CUUID>());
 	}
@@ -57,6 +57,7 @@ namespace NMR {
 		m_pObject = pObject;
 		m_mTransform = mTransform;
 		m_nHandle = nHandle;
+		m_MetaDataGroup = std::make_shared<CModelMetaDataGroup>();
 
 		setUUID(std::make_shared<CUUID>());
 	}
@@ -80,28 +81,23 @@ namespace NMR {
 	{
 		m_mTransform = mTransform;
 	}
-	
-	PackageResourceID CModelBuildItem::getObjectID()
-	{
-		return m_pObject->getResourceID()->getUniqueID();
-	}
 
 	nfBool CModelBuildItem::hasTransform()
 	{
 		return (!fnMATRIX3_isIdentity(m_mTransform));
 	}
 
-	std::wstring CModelBuildItem::getTransformString()
+	std::string CModelBuildItem::getTransformString()
 	{
-		return fnMATRIX3_toWideString(m_mTransform);
+		return fnMATRIX3_toString(m_mTransform);
 	}
 
-	std::wstring CModelBuildItem::getPartNumber()
+	std::string CModelBuildItem::getPartNumber()
 	{
 		return m_sPartNumber;
 	}
 
-	void CModelBuildItem::setPartNumber(_In_ std::wstring sPartNumber)
+	void CModelBuildItem::setPartNumber(_In_ std::string sPartNumber)
 	{
 		m_sPartNumber = sPartNumber;
 	}
@@ -122,12 +118,17 @@ namespace NMR {
 		m_UUID = uuid;
 	}
 
-	std::wstring CModelBuildItem::path()
+	PModelMetaDataGroup CModelBuildItem::metaDataGroup()
+	{
+		return m_MetaDataGroup;
+	}
+
+	std::string CModelBuildItem::path()
 	{
 		return m_sPath;
 	}
 
-	void CModelBuildItem::setPath(std::wstring sPath)
+	void CModelBuildItem::setPath(std::string sPath)
 	{
 		m_sPath = sPath;
 	}
@@ -141,7 +142,6 @@ namespace NMR {
 	nfUint32 CModelBuildItem::getHandle()
 	{
 		return m_nHandle;
-
 	}
 
 	bool CModelBuildItem::isValidForSlices() {

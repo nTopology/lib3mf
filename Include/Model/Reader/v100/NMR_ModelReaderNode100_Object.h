@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation (Original Author)
-Copyright (C) 2015 netfabb GmbH
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -37,10 +36,10 @@ A object reader model node is a parser for the object node of an XML Model Strea
 
 #include "Model/Reader/NMR_ModelReaderNode.h"
 #include "Model/Reader/v100/NMR_ModelReaderNode100_Mesh.h"
-#include "Model/Reader/NMR_ModelReader_ColorMapping.h"
 #include "Model/Reader/NMR_ModelReader_TexCoordMapping.h"
 #include "Model/Classes/NMR_ModelComponent.h"
 #include "Model/Classes/NMR_ModelComponentsObject.h"
+#include "Model/Classes/NMR_ModelMetaDataGroup.h"
 #include "Model/Classes/NMR_ModelObject.h"
 
 
@@ -51,33 +50,34 @@ namespace NMR {
 		CModel * m_pModel;
 		ModelResourceID m_nID;
 		nfBool m_bHasThumbnail;
-		std::wstring m_sThumbnail;
-		std::wstring m_sPartNumber;
-		std::wstring m_sName;
+		std::string m_sThumbnailPath;
+		std::string m_sPartNumber;
+		std::string m_sName;
 		PUUID m_UUID;
-		std::wstring m_sType;
+		std::string m_sType;
 		nfBool m_bHasType;
 		PModelObject m_pObject;
-		PModelReader_ColorMapping m_pColorMapping;
-		PModelReader_TexCoordMapping m_pTexCoordMapping;
 		nfBool m_bHasDefaultPropertyID;
 		nfBool m_bHasDefaultPropertyIndex;
-		ModelResourceID m_nDefaultPropertyID;
-		ModelResourceIndex m_nDefaultPropertyIndex;
+		ModelResourceID m_nObjectLevelPropertyModelID;
+		PPackageResourceID m_pObjectLevelPropertyID;
+		ModelResourceIndex m_nObjectLevelPropertyIndex;
 
 		nfUint32 m_nSliceStackId;
 		eModelSlicesMeshResolution m_eSlicesMeshResolution;
 		nfBool m_bHasMeshResolution;
 
+		PModelMetaDataGroup m_MetaDataGroup;
+
 		void createDefaultProperties();
 		void handleBeamLatticeExtension(CModelReaderNode100_Mesh* pXMLNode);
 	protected:
-    virtual void OnNSAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue, _In_z_ const nfWChar * pNameSpace);
-		virtual void OnAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue);
-		virtual void OnNSChildElement(_In_z_ const nfWChar * pChildName, _In_z_ const nfWChar * pNameSpace, _In_ CXmlReader * pXMLReader);
+		virtual void OnNSAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue, _In_z_ const nfChar * pNameSpace);
+		virtual void OnAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue);
+		virtual void OnNSChildElement(_In_z_ const nfChar * pChildName, _In_z_ const nfChar * pNameSpace, _In_ CXmlReader * pXMLReader);
 	public:
 		CModelReaderNode100_Object() = delete;
-		CModelReaderNode100_Object(_In_ CModel * pModel, _In_ PModelReaderWarnings pWarnings, _In_ PModelReader_ColorMapping pColorMapping, _In_ PModelReader_TexCoordMapping pTexCoordMapping);
+		CModelReaderNode100_Object(_In_ CModel * pModel, _In_ PModelWarnings pWarnings, _In_ PProgressMonitor pProgressMonitor);
 
 		virtual void parseXML(_In_ CXmlReader * pXMLReader);
 	};
