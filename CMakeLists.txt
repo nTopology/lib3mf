@@ -339,7 +339,18 @@ else()
 endif()
 
 if (USE_INCLUDED_FASTFLOAT)
-  target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/submodules/fast_float/include)
+  # nTop: do not depend on the (usually uninitialised) submodules/fast_float.
+  # Libraries/fast_float/Include holds the same headers as the submodule
+  # (v6.0.0, f3ff46f) but flattened, while the sources include
+  # <fast_float/fast_float.h>. Expose them under that prefix from the build tree.
+  set(LIB3MF_FASTFLOAT_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/lib3mf_fast_float/include")
+  file(GLOB _lib3mf_fast_float_headers "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/fast_float/Include/*.h")
+  foreach(_hdr ${_lib3mf_fast_float_headers})
+    get_filename_component(_hdr_name "${_hdr}" NAME)
+    configure_file("${_hdr}" "${LIB3MF_FASTFLOAT_INCLUDE_DIR}/fast_float/${_hdr_name}" COPYONLY)
+  endforeach()
+  unset(_lib3mf_fast_float_headers)
+  target_include_directories(${PROJECT_NAME} PRIVATE ${LIB3MF_FASTFLOAT_INCLUDE_DIR})
 else()
   find_package(FastFloat CONFIG REQUIRED)
   target_link_libraries(${PROJECT_NAME} PRIVATE FastFloat::fast_float)
