@@ -278,7 +278,11 @@ else()
       set(_lib3mf_external_link_visibility PUBLIC)
     endif()
 
-    find_package(libzip CONFIG QUIET)
+    # nTop: a parent project (e.g. turbo) may already provide libzip::zip; do not
+    # run find_package() then, a system libzip-config.cmake can be broken/clash.
+    if (NOT TARGET libzip::zip)
+      find_package(libzip CONFIG QUIET)
+    endif()
     if (TARGET libzip::zip)
       target_link_libraries(${PROJECT_NAME} ${_lib3mf_external_link_visibility} libzip::zip)
     else()
@@ -307,7 +311,10 @@ else()
       set(_lib3mf_external_link_visibility PUBLIC)
     endif()
 
-    find_package(ZLIB QUIET)
+    # nTop: reuse an existing ZLIB::ZLIB provided by the parent project.
+    if (NOT TARGET ZLIB::ZLIB)
+      find_package(ZLIB QUIET)
+    endif()
     if (TARGET ZLIB::ZLIB)
       target_link_libraries(${PROJECT_NAME} ${_lib3mf_external_link_visibility} ZLIB::ZLIB)
     else()
