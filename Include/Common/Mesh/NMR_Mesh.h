@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -47,6 +47,8 @@ You can only add nodes and faces to mesh. You cannot remove the existing structu
 #include "Common/NMR_Types.h"
 #include "Common/Mesh/NMR_BeamLattice.h"
 
+#include <map>
+
 namespace NMR {
 
 	class CMesh {
@@ -55,8 +57,9 @@ namespace NMR {
 		MESHFACES m_Faces;
 		CBeamLattice m_BeamLattice;
 
-		PMeshInformationHandler m_pMeshInformationHandler;
 
+
+		PMeshInformationHandler m_pMeshInformationHandler;
 	public:
 		CMesh();
 		CMesh(_In_opt_ CMesh * pMesh);
@@ -67,38 +70,58 @@ namespace NMR {
 		void addToMesh(_In_opt_ CMesh * pMesh, _In_ NMATRIX3 mMatrix);
 
 		_Ret_notnull_ MESHNODE * addNode(_In_ const NVEC3 vPosition);
+		_Ret_notnull_ MESHNODE * addNode(_In_ const nfFloat posX, _In_ const nfFloat posY, _In_ const nfFloat posZ);
 		_Ret_notnull_ MESHFACE * addFace(_In_ MESHNODE * pNode1, _In_ MESHNODE * pNode2, _In_ MESHNODE * pNode3);
-		_Ret_notnull_ MESHBEAM * addBeam(_In_ MESHNODE * pNode1, _In_ MESHNODE * pNode2, _In_ nfDouble * pRadius1, _In_ nfDouble * pRadius2,
-								_In_ nfInt32 * peCapMode1, _In_ nfInt32 * peCapMode2);
+		_Ret_notnull_ MESHFACE * addFace(_In_ nfInt32 nNodeIndex1, _In_ nfInt32 nNodeIndex2, _In_ nfInt32 nNodeIndex3);
+		_Ret_notnull_ MESHBEAM * addBeam(_In_ MESHNODE * pNode1, _In_ MESHNODE * pNode2, _In_ nfDouble dRadius1, _In_ nfDouble dRadius2,
+			_In_ nfInt32 eCapMode1, _In_ nfInt32 eCapMode2);
+		_Ret_notnull_ MESHBALL * addBall(_In_ MESHNODE * pNode, _In_ nfDouble dRadius);
 		_Ret_notnull_ PBEAMSET addBeamSet();
 		
 		nfUint32 getNodeCount();
 		nfUint32 getFaceCount();
 		nfUint32 getBeamCount();
+		nfUint32 getBallCount();
 		nfUint32 getBeamSetCount();
+		nfUint32 getOccupiedNodeCount();
+		nfBool isNodeOccupied(_In_ nfUint32 nIdx);
 
 		_Ret_notnull_ MESHNODE * getNode(_In_ nfUint32 nIdx);
 		_Ret_notnull_ MESHFACE * getFace(_In_ nfUint32 nIdx);
 		_Ret_notnull_ MESHBEAM * getBeam(_In_ nfUint32 nIdx);
+		_Ret_notnull_ MESHBALL * getBall(_In_ nfUint32 nIdx);
 		_Ret_notnull_ PBEAMSET getBeamSet(_In_ nfUint32 nIdx);
+		_Ret_notnull_ MESHNODE * getOccupiedNode(_In_ nfUint32 nIdx);
 
 		void setBeamLatticeMinLength(nfDouble dMinLength);
 		nfDouble getBeamLatticeMinLength();
+
+		// TODO: make these return sensible values
 		void setDefaultBeamRadius(nfDouble dRadius);
 		nfDouble getDefaultBeamRadius();
+		void setDefaultBallRadius(nfDouble dBallRadius);
+		nfDouble getDefaultBallRadius();
 		void setBeamLatticeAccuracy(nfDouble dAccuracy);
-		nfBool getBeamLatticeAccuracy(nfDouble * pdAccuracy);
-		void setBeamLatticeCapMode(eModelBeamLatticeCapMode dRadius);
+		nfBool getBeamLatticeAccuracy(nfDouble& dAccuracy);
+		void setBeamLatticeBallMode(eModelBeamLatticeBallMode eBallMode);
+		eModelBeamLatticeBallMode getBeamLatticeBallMode();
+		void setBeamLatticeCapMode(eModelBeamLatticeCapMode eCapMode);
 		eModelBeamLatticeCapMode getBeamLatticeCapMode();
 
 		nfBool checkSanity();
 
 		void clear();
 		void clearBeamLattice();
+		void clearBeamLatticeBeams();
+		void clearBeamLatticeBalls();
+		void scanOccupiedNodes();
+		void validateBeamLatticeBalls();
 
 		_Ret_maybenull_ CMeshInformationHandler * getMeshInformationHandler();
 		_Ret_notnull_ CMeshInformationHandler * createMeshInformationHandler();
 		void clearMeshInformationHandler();
+		void patchMeshInformationResources(_In_ std::map<UniqueResourceID, UniqueResourceID> &oldToNewMapping);
+		void extendOutbox(_Out_ NOUTBOX3& vOutBox, _In_ const NMATRIX3 mAccumulatedMatrix);
 	};
 
 	typedef std::shared_ptr <CMesh> PMesh;

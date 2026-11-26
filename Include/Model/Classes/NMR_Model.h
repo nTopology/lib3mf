@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -48,6 +48,8 @@ NMR_Model.h defines the Model Class. A model is an in memory representation of t
 
 #include "Common/NMR_UUID.h"
 
+#include "Common/NMR_SecureContentTypes.h"
+
 namespace NMR {
 
 	class CModelBuildItem;
@@ -62,33 +64,74 @@ namespace NMR {
 	class CModelMetaData;
 	typedef std::shared_ptr <CModelMetaData> PModelMetaData;
 
+	class CModelMetaDataGroup;
+	typedef std::shared_ptr <CModelMetaDataGroup> PModelMetaDataGroup;
+
 	class CModelAttachment;
 	typedef std::shared_ptr <CModelAttachment> PModelAttachment;
 
 	class CModelBaseMaterialResource;
 	typedef std::shared_ptr <CModelBaseMaterialResource> PModelBaseMaterialResource;
 
+	class CModelColorGroupResource;
+	typedef std::shared_ptr <CModelColorGroupResource> PModelColorGroupResource;
+
+	class CModelCompositeMaterialsResource;
+	typedef std::shared_ptr <CModelCompositeMaterialsResource> PModelCompositeMaterialsResource;
+
+	class CModelMultiPropertyGroupResource;
+	typedef std::shared_ptr <CModelMultiPropertyGroupResource> PModelMultiPropertyGroupResource;
+
+	class CModelTexture2DGroupResource;
+	typedef std::shared_ptr <CModelTexture2DGroupResource> PModelTexture2DGroupResource;
+
 	class CModelTexture2DResource;
 	typedef std::shared_ptr <CModelTexture2DResource> PModelTexture2DResource;
 
-	class CModelSliceStackResource;
-	typedef std::shared_ptr <CModelSliceStackResource> PModelSliceStackResource;
+	class CModelSliceStack;
+	typedef std::shared_ptr <CModelSliceStack> PModelSliceStack;
 
-	class CSliceStack;
-	typedef std::shared_ptr <CSliceStack> PSliceStack;
+	class CKeyStore;
+	typedef std::shared_ptr <CKeyStore> PKeyStore;
 
+	typedef std::map<NMR::UniqueResourceID, NMR::UniqueResourceID> UniqueResourceIDMapping;
+
+	class CModelImage3D;
+	typedef std::shared_ptr <CModelImage3D> PModelImage3D;
+
+	class CModelImageStack;
+	typedef std::shared_ptr <CModelImageStack> PModelImageStack;
+
+	class CModelFunction;
+	typedef std::shared_ptr <CModelFunction> PModelFunction;
+	
+	class CModelImplicitFunction;
+	typedef std::shared_ptr <CModelImplicitFunction> PModelImplicitFunction;
+
+	class CModelFunctionFromImage3D;
+	typedef std::shared_ptr <CModelFunctionFromImage3D> PModelFunctionFromImage3D;
+
+	class CModelVolumeData;
+	typedef std::shared_ptr <CModelVolumeData> PModelVolumeData;
+
+	class LevelSetObject;
+	typedef std::shared_ptr <LevelSetObject> PLevelSetObject;
+
+	// The Model class implements the unification of all model-file in a 3MF package
+	// It should be understood as a "MultiModel"
 	class CModel {
 	private:
-		std::wstring m_sCurPath;
-		std::wstring m_sRootPath;
+		PPackageModelPath m_pCurPath;
+		PPackageModelPath m_pPath;
 
-		std::vector<PUUID> usedUUIDs;	// datastructure used to ensure that UUIDs within one model (package) are unique
+		std::unordered_map<std::string, PUUID> usedUUIDs;	// datastructure used to ensure that UUIDs within one model (package) are unique
 
-		// Object Resources of the model
-		std::map<PackageResourceID, PModelResource> m_ResourceMap;
+		// map of all UniqueResourceIDs to actual object resources of the model
+		std::map<UniqueResourceID, PModelResource> m_ResourceMap;
 		CResourceHandler m_resourceHandler;
 	private:
 		std::vector<PModelResource> m_Resources;
+		ModelResourceID m_MaxResourceId = 0;
 
 		// Model Build Items
 		std::vector<PModelBuildItem> m_BuildItems;
@@ -99,30 +142,42 @@ namespace NMR {
 		// Model Properties
 		nfUint32 m_nHandleCounter;
 		eModelUnit m_Unit;
-		std::wstring m_sLanguage;
+		std::string m_sLanguage;
 		// Package Thumbnail as attachment
 		PModelAttachment m_pPackageThumbnailAttachment;
 
 		// Model Metadata
-		std::vector<PModelMetaData> m_MetaData;
-		std::map<std::wstring, PModelMetaData> m_MetaDataMap;
+		PModelMetaDataGroup m_MetaDataGroup;
 
 		// Model Attachments
 		std::vector<PModelAttachment> m_Attachments;
-		std::map<std::wstring, PModelAttachment> m_AttachmentURIMap;
+		std::unordered_map<std::string, PModelAttachment> m_AttachmentURIMap;
 
 		// Custom Attachment Content Types
-		std::map<std::wstring, std::wstring> m_CustomContentTypes;
+		std::map<std::string, std::string> m_CustomContentTypes;
 
 		// Production Model Attachments
 		std::vector<PModelAttachment> m_ProductionAttachments;
-		std::map<std::wstring, PModelAttachment> m_ProductionAttachmentURIMap;
+		std::unordered_map<std::string, PModelAttachment> m_ProductionAttachmentURIMap;
 
 		// Indexed lookup lists for standard resource types
 		std::vector<PModelResource> m_ObjectLookup;
 		std::vector<PModelResource> m_BaseMaterialLookup;
 		std::vector<PModelResource> m_TextureLookup;
 		std::vector<PModelResource> m_SliceStackLookup;
+		std::vector<PModelResource> m_ColorGroupLookup;
+		std::vector<PModelResource> m_Texture2DGroupLookup;
+		std::vector<PModelResource> m_CompositeMaterialsLookup;
+		std::vector<PModelResource> m_MultiPropertyGroupLookup;
+		std::vector<PModelResource> m_Image3DLookup;
+		std::vector<PModelResource> m_FunctionLookup; // for implicit models
+		std::vector<PModelResource> m_VolumeDataLookup;
+		std::vector<PModelResource> m_levelSetObjectLookup;
+
+		// The KeyStore reference
+		PKeyStore m_pKeyStore;
+
+		CryptoRandGenDescriptor m_sRandDescriptor;
 
 		// Add Resource to resource lookup tables
 		void addResourceToLookupTable(_In_ PModelResource pResource);
@@ -131,36 +186,50 @@ namespace NMR {
 		CModel();
 		~CModel();
 
-		const std::wstring curPath();
-		void setCurPath(const nfWChar* sPath);
+		const std::string currentPath();
+		PPackageModelPath currentModelPath();
+		void setCurrentPath(const std::string sPath);
 
-		const std::wstring rootPath();
-		void setRootPath(const nfWChar* sPath);
+		PPackageModelPath rootModelPath();
+		const std::string rootPath();
+		void setRootPath(const std::string sPath);
+
+		PPackageModelPath findOrCreateModelPath(std::string sPath);
+		std::vector<PPackageModelPath> retrieveAllModelPaths();
 
 		// Merge all build items into one mesh
 		void mergeToMesh(_In_ CMesh * pMesh);
 
 		// Units setter/getter
 		void setUnit(_In_ eModelUnit Unit);
-		void setUnitString(_In_ std::wstring sUnitString);
+		void setUnitString(_In_ std::string sUnitString);
 		eModelUnit getUnit();
-		std::wstring getUnitString();
+		std::string getUnitString();
 
 		// Language setter/getter
-		void setLanguage(_In_ std::wstring sLanguage);
-		std::wstring getLanguage();
+		void setLanguage(_In_ std::string sLanguage);
+		std::string getLanguage();
 
 		// General Resource Handling
-		PModelResource findResource(_In_ std::wstring path, ModelResourceID nID);
-		PModelResource findResource(_In_ PackageResourceID nID);
+		PModelResource findResource(_In_ std::string path, ModelResourceID nID);
+		PModelResource findResource(_In_ UniqueResourceID nID);
 		PModelResource findResource(_In_ PPackageResourceID pID);
 
-		PPackageResourceID findPackageResourceID(_In_ std::wstring path, ModelResourceID nID);
-		PPackageResourceID findPackageResourceID(_In_ PackageResourceID nID);
+		PPackageResourceID findPackageResourceID(_In_ std::string path, ModelResourceID nID);
+		PPackageResourceID findPackageResourceID(_In_ UniqueResourceID nID);
 		
 		nfUint32 getResourceCount();
 		PModelResource getResource(_In_ nfUint32 nIndex);
 		void addResource(_In_ PModelResource pResource);
+
+		// Metadata setter/getter
+		PModelMetaData addMetaData(_In_ std::string sNameSpace, _In_ std::string sName, _In_ std::string sValue, _In_ std::string sType, _In_ nfBool bPreserve);
+		nfUint32 getMetaDataCount();
+		PModelMetaData getMetaData(_In_ nfUint32 nIndex);
+		void removeMetaData(_In_ nfUint32 nIndex);
+		nfBool hasMetaData(_In_ std::string sKey);
+		void mergeMetaData(_In_ CModel * pSourceModel);
+		PModelMetaDataGroup getMetaDataGroup();
 
 		// Build Handling
 		void addBuildItem(_In_ PModelBuildItem pBuildItem);
@@ -175,44 +244,90 @@ namespace NMR {
 		void registerUUID(PUUID pUUID);
 
 		// Package Thumbnail Attachment
-		PModelAttachment addPackageThumbnail(_In_ std::wstring sPath, _In_ PImportStream pStream);
+		PModelAttachment addPackageThumbnail(_In_ std::string sPath, _In_ PImportStream pStream);
 		PModelAttachment addPackageThumbnail();
 		void removePackageThumbnail();
 		PModelAttachment getPackageThumbnail();
 
-		// Metadata setter/getter
-		void addMetaData(_In_ std::wstring sName, _In_ std::wstring sValue);
-		nfUint32 getMetaDataCount();
-		void getMetaData(_In_ nfUint32 nIndex, _Out_ std::wstring & sName, _Out_ std::wstring & sValue);
-		void removeMetaData(_In_ nfUint32 nIndex);
-		nfBool hasMetaData(_In_ std::wstring sName);
-		void mergeMetaData(_In_ CModel * pSourceModel);
-
 		// Retrieve a unique Resource ID
-		PackageResourceID generateResourceID();	// unique per model
-		PPackageResourceID generatePackageResourceID(_In_ std::wstring path, ModelResourceID nID);	// unique per package
+		UniqueResourceID generateResourceID();	// unique per model
+		void updateUniqueResourceID(UniqueResourceID nOldID, UniqueResourceID nNewID);
+
+		PPackageResourceID generatePackageResourceID(_In_ std::string path, ModelResourceID nID);	// unique per package
+		void removePackageResourceID(PPackageResourceID pID);
 
 		// Convenience functions for objects
-		_Ret_maybenull_ CModelObject * findObject(_In_ PackageResourceID nResourceID);
+		_Ret_maybenull_ CModelObject * findObject(_In_ UniqueResourceID nResourceID);
 		nfUint32 getObjectCount();
 		PModelResource getObjectResource(_In_ nfUint32 nIndex);
 		nfInt32 compareObjectsByResourceID(CModelResource* pObjectResourceA, CModelResource* pObjectResourceB);
 		CModelObject * getObject(_In_ nfUint32 nIndex);
 
 		// Convenience functions for base materials
-		_Ret_maybenull_ CModelBaseMaterialResource * findBaseMaterial(_In_ PackageResourceID nResourceID);
+		_Ret_maybenull_ PModelBaseMaterialResource findBaseMaterial(_In_ PPackageResourceID pID);
 		nfUint32 getBaseMaterialCount();
 		PModelResource getBaseMaterialResource(_In_ nfUint32 nIndex);
 		CModelBaseMaterialResource * getBaseMaterial(_In_ nfUint32 nIndex);
-		void mergeBaseMaterials(_In_ CModel * pSourceModel);
+		void mergeBaseMaterials(_In_ CModel * pSourceModel, _In_ UniqueResourceIDMapping &oldToNewMapping);
+
+		// Convenience functions for color groups
+		_Ret_maybenull_ PModelColorGroupResource findColorGroup(_In_ UniqueResourceID nResourceID);
+		nfUint32 getColorGroupCount();
+		PModelResource getColorGroupResource(_In_ nfUint32 nIndex);
+		CModelColorGroupResource * getColorGroup(_In_ nfUint32 nIndex);
+		void mergeColorGroups(_In_ CModel * pSourceModel, _In_ UniqueResourceIDMapping &oldToNewMapping);
+
+		// Convenience functions for texture2d groups
+		_Ret_maybenull_ PModelTexture2DGroupResource findTexture2DGroup(_In_ UniqueResourceID nResourceID);
+		nfUint32 getTexture2DGroupCount();
+		PModelResource getTexture2DGroupResource(_In_ nfUint32 nIndex);
+		CModelTexture2DGroupResource * getTexture2DGroup(_In_ nfUint32 nIndex);
+		void mergeTexture2DGroups(_In_ CModel * pSourceModel, _In_ UniqueResourceIDMapping &oldToNewMapping);
+
+		// Convenience functions for composite materials
+		_Ret_maybenull_ PModelCompositeMaterialsResource findCompositeMaterials(_In_ UniqueResourceID nResourceID);
+		nfUint32 getCompositeMaterialsCount();
+		PModelResource getCompositeMaterialsResource(_In_ nfUint32 nIndex);
+		CModelCompositeMaterialsResource * getCompositeMaterials(_In_ nfUint32 nIndex);
+		void mergeCompositeMaterials(_In_ CModel * pSourceModel, _In_ UniqueResourceIDMapping &oldToNewMapping);
+
+		// Convenience functions for multi property groups
+		_Ret_maybenull_ PModelMultiPropertyGroupResource findMultiPropertyGroup(_In_ UniqueResourceID nResourceID);
+		nfUint32 getMultiPropertyGroupCount();
+		PModelResource getMultiPropertyGroupResource(_In_ nfUint32 nIndex);
+		CModelMultiPropertyGroupResource * getMultiPropertyGroup(_In_ nfUint32 nIndex);
+		void mergeMultiPropertyGroups(_In_ CModel * pSourceModel, _In_ UniqueResourceIDMapping &oldToNewMapping);
 
 		// Convenience functions for 2D Textures
-		_Ret_maybenull_ CModelTexture2DResource * findTexture2D(_In_ PackageResourceID nResourceID);
+		_Ret_maybenull_ PModelTexture2DResource findTexture2D(_In_ UniqueResourceID nResourceID);
 		nfUint32 getTexture2DCount();
 		PModelResource getTexture2DResource(_In_ nfUint32 nIndex);
 		CModelTexture2DResource * getTexture2D(_In_ nfUint32 nIndex);
-		void mergeTextures2D(_In_ CModel * pSourceModel);
+		void mergeTextures2D(_In_ CModel * pSourceModel, _In_ UniqueResourceIDMapping &oldToNewMapping);
 
+		// Convenience functions for 3D Images
+		_Ret_maybenull_ PModelImage3D findImage3D(_In_ UniqueResourceID nResourceID);
+		_Ret_maybenull_ PModelImageStack findImageStack(_In_ UniqueResourceID nResourceID);
+		nfUint32 getImage3DCount();
+		PModelResource getImage3DResource(_In_ nfUint32 nIndex);
+		CModelImage3D* getImage3D(_In_ nfUint32 nIndex);
+		void mergeImage3Ds(_In_ CModel* pSourceModel, _In_ UniqueResourceIDMapping& oldToNewMapping);
+
+		// Convenience functions for Functions
+		PModelFunction findFunction(UniqueResourceID nResourceID);
+		nfUint32 getFunctionCount();
+		PModelResource getFunctionResource(_In_ nfUint32 nIndex);
+		CModelImplicitFunction* getImplicitFunction(_In_ nfUint32 nIndex);
+		CModelFunctionFromImage3D* getFunctionFromImage3D(_In_ nfUint32 nIndex);
+		void mergeFunctions(_In_ CModel* pSourceModel, _In_ UniqueResourceIDMapping& oldToNewMapping);
+
+		// Convenience functions for volume data
+		PModelVolumeData findVolumeData(UniqueResourceID nResourceID);
+		nfUint32 getVolumeDataCount();
+		PModelResource getVolumeDataResource(_In_ nfUint32 nIndex);
+		CModelVolumeData* getVolumeData(_In_ nfUint32 nIndex);
+
+		
 		// Clear all build items and Resources
 		void clearAll ();
 
@@ -220,37 +335,51 @@ namespace NMR {
 		nfUint32 createHandle();
 
 		// Custom Attachments (includes Texture Attachments)
-		PModelAttachment addAttachment(_In_ const std::wstring sPath, _In_ const std::wstring sRelationShipType, PImportStream pCopiedStream);
-		void removeAttachment(_In_ const std::wstring sPath);
+		PModelAttachment addAttachment(_In_ const std::string sPath, _In_ const std::string sRelationShipType, PImportStream pCopiedStream);
+		void removeAttachment(_In_ const std::string sPath);
 		nfUint32 getAttachmentCount();
 		PModelAttachment getModelAttachment(_In_ nfUint32 nIndex);
-		std::wstring getModelAttachmentPath(_In_ nfUint32 nIndex);
-		PModelAttachment findModelAttachment(_In_ std::wstring sPath);
+		std::string getModelAttachmentPath(_In_ nfUint32 nIndex);
+		PModelAttachment findModelAttachment(_In_ std::string sPath);
 		void mergeModelAttachments(_In_ CModel * pSourceModel);
 
 		// Custom Content Types
-		std::map<std::wstring, std::wstring> getCustomContentTypes();
-		void addCustomContentType(_In_ const std::wstring sExtension, _In_ const std::wstring sContentType);
-		void removeCustomContentType(_In_ const std::wstring sExtension);
-		nfBool contentTypeIsDefault(_In_ const std::wstring sExtension);
+		std::map<std::string, std::string> getCustomContentTypes();
+		void addCustomContentType(_In_ const std::string sExtension, _In_ const std::string sContentType);
+		void removeCustomContentType(_In_ const std::string sExtension);
+		nfBool contentTypeIsDefault(_In_ const std::string sExtension);
 
 		// Production Extension Attachments
-		PModelAttachment addProductionAttachment(_In_ const std::wstring sPath, _In_ const std::wstring sRelationShipType, PImportStream pCopiedStream, nfBool bForceUnique);
-		void removeProductionAttachment(_In_ const std::wstring sPath);
+		PModelAttachment addProductionAttachment(_In_ const std::string sPath, _In_ const std::string sRelationShipType, PImportStream pCopiedStream, nfBool bForceUnique);
+		void removeProductionAttachment(_In_ const std::string sPath);
 		nfUint32 getProductionAttachmentCount();
 		PModelAttachment getProductionModelAttachment(_In_ nfUint32 nIndex);
-		std::wstring getProductionModelAttachmentPath(_In_ nfUint32 nIndex);
-		PModelAttachment findProductionModelAttachment(_In_ std::wstring sPath);
+		std::string getProductionModelAttachmentPath(_In_ nfUint32 nIndex);
+		PModelAttachment findProductionModelAttachment(_In_ std::string sPath);
 
 		// Required Extension Handling
-		nfBool RequireExtension(_In_ const std::wstring sExtension);
+		nfBool RequireExtension(_In_ const std::string sExtension);
 
 		// Convenience functions for slice stacks
 		nfUint32 getSliceStackCount();
 		PModelResource getSliceStackResource(_In_ nfUint32 nIndex);
-		CSliceStack * getSliceStack(_In_ nfUint32 nIndex);
 
-		void removeReferencedSliceStackResources();
+		// Sorts objects by correct dependency
+		std::list<CModelObject *> getSortedObjectList ();
+
+
+		// Gets the KeyStore
+		PKeyStore getKeyStore();
+		void setKeyStore(PKeyStore keyStore);
+
+		void setCryptoRandCallback(CryptoRandGenDescriptor const & randDescriptor);
+		nfBool hasCryptoRandCallbak() const;
+		nfUint64 generateRandomBytes(nfByte *, nfUint64);
+
+		[[nodiscard]] ModelResourceID getMaxModelResourceID();
+
+		void removeResource(PModelResource pResource);
+
 	};
 
 	typedef std::shared_ptr <CModel> PModel;

@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -31,9 +30,9 @@ NMR_Vector.cpp implements all needed direct operations on 2D and 3D vectors.
 
 --*/
 
-#include "Common/Math/NMR_Geometry.h" 
-#include "Common/Math/NMR_Vector.h" 
-#include "Common/NMR_Exception.h" 
+#include "Common/Math/NMR_Geometry.h"
+#include "Common/Math/NMR_Vector.h"
+#include "Common/NMR_Exception.h"
 #include <cmath>
 #include <algorithm>
 #include <limits>

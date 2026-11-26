@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -46,11 +45,14 @@ namespace NMR {
 	class CExportStream {
 	private:
 	public:
+		virtual ~CExportStream() = default;
+
 		virtual nfBool seekPosition(_In_ nfUint64 position, _In_ nfBool bHasToSucceed) = 0;
 		virtual nfBool seekForward(_In_ nfUint64 bytes, _In_ nfBool bHasToSucceed) = 0;
 		virtual nfBool seekFromEnd(_In_ nfUint64 bytes, _In_ nfBool bHasToSucceed) = 0;
 		virtual nfUint64 getPosition () = 0;
 		virtual nfUint64 writeBuffer(_In_ const void * pBuffer, _In_ nfUint64 cbTotalBytesToWrite) = 0;
+		virtual void close();
 		void copyFrom(_In_ CImportStream * pImportStream, _In_ nfUint64 cbCount, _In_ nfUint32 cbBufferSize);
 	};
 

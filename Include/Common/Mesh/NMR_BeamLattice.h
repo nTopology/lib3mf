@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2017 Autodesk Inc.
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -38,6 +38,8 @@ NMR_MeshBeamLattice.h defines the class CMeshBeamLattice.
 #include "Common/NMR_Types.h"
 #include "Model/Classes/NMR_ModelTypes.h"
 
+#include <unordered_set>
+
 namespace NMR {
 
 	class CBeamLattice {
@@ -45,15 +47,19 @@ namespace NMR {
 		friend class CMesh;
 
 		MESHNODES &m_Nodes;	// reference to the nodes of the parent mesh
+		std::unordered_set<nfInt32> m_OccupiedNodes;    // datastructure used to ensure that balls are only placed at nodes with beams
 		MESHBEAMS m_Beams;
 		std::vector<PBEAMSET> m_pBeamSets;
+		MESHBALLS m_Balls;
 		
 		nfDouble m_dMinLength;
-		nfDouble m_dRadius;
-		eModelBeamLatticeCapMode m_CapMode;
+		eModelBeamLatticeBallMode m_eBallMode;
+		nfDouble m_dDefaultBallRadius;
 	public:
 		CBeamLattice(_In_ MESHNODES &nodes);
 
+		void clearBeams();
+		void clearBalls();
 		void clear();
 	};
 

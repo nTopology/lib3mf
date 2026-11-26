@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2017 Autodesk Inc.
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -26,7 +26,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Abstract:
 
-NMR_MeshBeamLattice.h implements the class CMeshBeamLattice.
+NMR_MeshBeamLattice.cpp implements the class CMeshBeamLattice.
 
 --*/
 
@@ -36,14 +36,24 @@ namespace NMR {
 
 	CBeamLattice::CBeamLattice(_In_ MESHNODES &nodes) : m_Nodes(nodes)
 	{ 
-		m_CapMode = eModelBeamLatticeCapMode::MODELBEAMLATTICECAPMODE_SPHERE;
-		m_dRadius = 1;
 		m_dMinLength = 0.0001;
+		m_eBallMode = eModelBeamLatticeBallMode::MODELBEAMLATTICEBALLMODE_NONE;
+		m_dDefaultBallRadius = 0.0;
+	}
+
+	void CBeamLattice::clearBeams() {
+		m_Beams.clearAllData();
+		m_pBeamSets.clear();
+		m_OccupiedNodes.clear();
+	}
+
+	void CBeamLattice::clearBalls() {
+		m_Balls.clearAllData();
 	}
 
 	void CBeamLattice::clear() {
-		m_Beams.clearAllData();
-		m_pBeamSets.clear();
+		clearBeams();
+		clearBalls();
 	}
 
 }

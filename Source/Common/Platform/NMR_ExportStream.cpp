@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -39,6 +38,11 @@ This is an abstract base stream class for exporting from various data sources.
 
 namespace NMR {
 
+	void CExportStream::close()
+	{
+		// do nothing
+	}
+
 	void CExportStream::copyFrom(_In_ CImportStream * pImportStream, _In_ nfUint64 cbCount, _In_ nfUint32 cbBufferSize)
 	{
 		if (pImportStream == nullptr)
@@ -60,11 +64,13 @@ namespace NMR {
 			else
 				cbBytesToCopy = (nfUint32)cbCount;
 
-			pImportStream->readBuffer(&Buffer[0], cbBytesToCopy, true);
+			pImportStream->readIntoBuffer(&Buffer[0], cbBytesToCopy, true);
 			writeBuffer(&Buffer[0], cbBytesToCopy);
 
 			cbCount -= cbBytesToCopy;
 		}
+
+		close();
 	}
 
 

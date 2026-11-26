@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2017 Autodesk Inc.
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -35,6 +35,8 @@ NMR_ModelReaderNode_BeamLattice1702_BeamLattice.cpp covers the official 3MF beam
 #include "Model/Reader/BeamLattice1702/NMR_ModelReaderNode_BeamLattice1702_Beams.h"
 #include "Model/Reader/BeamLattice1702/NMR_ModelReaderNode_BeamLattice1702_Beam.h"
 #include "Model/Reader/BeamLattice1702/NMR_ModelReaderNode_BeamLattice1702_BeamSets.h"
+#include "Model/Reader/BeamLattice1702/NMR_ModelReaderNode_BeamLattice1702_Balls.h"
+#include "Model/Reader/BeamLattice1702/NMR_ModelReaderNode_BeamLattice1702_Ball.h"
 
 #include "Model/Classes/NMR_ModelConstants.h"
 #include "Model/Classes/NMR_ModelMeshObject.h"
@@ -46,7 +48,7 @@ NMR_ModelReaderNode_BeamLattice1702_BeamLattice.cpp covers the official 3MF beam
 
 namespace NMR {
 
-	CModelReaderNode_BeamLattice1702_BeamLattice::CModelReaderNode_BeamLattice1702_BeamLattice(_In_ CModel * pModel, _In_ CMesh * pMesh, _In_ PModelReaderWarnings pWarnings)
+	CModelReaderNode_BeamLattice1702_BeamLattice::CModelReaderNode_BeamLattice1702_BeamLattice(_In_ CModel * pModel, _In_ CMesh * pMesh, _In_ PModelWarnings pWarnings)
 		: CModelReaderNode(pWarnings)
 	{
 		m_pModel = pModel;
@@ -57,6 +59,9 @@ namespace NMR {
 		m_bHasRepresentationMeshID = false;
 		m_nRepresentationMeshID = 0;
 		m_eClipMode = eModelBeamLatticeClipMode::MODELBEAMLATTICECLIPMODE_NONE;
+		m_dDefaultRadius = 0.0001;
+		m_eDefaultCapMode = eModelBeamLatticeCapMode::MODELBEAMLATTICECAPMODE_SPHERE;
+		m_dDefaultBallRadius = 0.0;
 	}
 
 	void CModelReaderNode_BeamLattice1702_BeamLattice::parseXML(_In_ CXmlReader * pXMLReader)
@@ -84,76 +89,121 @@ namespace NMR {
 		bHasRepresentation = m_bHasRepresentationMeshID;
 		nRepresentationMeshID = m_nRepresentationMeshID;
 	}
+
+	void CModelReaderNode_BeamLattice1702_BeamLattice::validateBallOptions(_In_ PModelWarnings pWarnings)
+	{
+		if (m_pMesh->getBeamLatticeBallMode() != eModelBeamLatticeBallMode::MODELBEAMLATTICEBALLMODE_NONE) {
+			if (m_pMesh->getDefaultBallRadius() <= 0 || m_pMesh->getDefaultBallRadius() >= XML_3MF_MAXIMUMCOORDINATEVALUE) {
+				pWarnings->addException(CNMRException(NMR_ERROR_BEAMLATTICEINVALIDATTRIBUTE), mrwInvalidOptionalValue);
+			}
+		}
+	}
 	
-	void CModelReaderNode_BeamLattice1702_BeamLattice::OnAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue)
+	void CModelReaderNode_BeamLattice1702_BeamLattice::OnAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue)
 	{
 		__NMRASSERT(pAttributeName);
 		__NMRASSERT(pAttributeValue);
 
-		if (wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_BEAMLATTICE_RADIUS) == 0) {
-			nfDouble dValue = fnWStringToDouble(pAttributeValue);
+		if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_BEAMLATTICE_RADIUS) == 0) {
+			nfDouble dValue = fnStringToDouble(pAttributeValue);
 			if ( std::isnan(dValue) || (dValue <= 0) || (dValue > XML_3MF_MAXIMUMCOORDINATEVALUE) )
 				throw CNMRException(NMR_ERROR_BEAMLATTICEINVALIDATTRIBUTE);
-			m_pMesh->setDefaultBeamRadius(dValue);
+			m_dDefaultRadius = dValue;
 		}
-		else if ( (wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_BEAMLATTICE_MINLENGTH) == 0) ||
-			(wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_BEAMLATTICE_PRECISION) == 0) )	// legacy
+		else if ( (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_BEAMLATTICE_MINLENGTH) == 0) ||
+			(strcmp(pAttributeName, XML_3MF_ATTRIBUTE_BEAMLATTICE_PRECISION) == 0) )	// legacy
 		{
-			nfDouble dValue = fnWStringToDouble(pAttributeValue);
+			nfDouble dValue = fnStringToDouble(pAttributeValue);
 			if (std::isnan(dValue) || (dValue <= 0) || (dValue > XML_3MF_MAXIMUMCOORDINATEVALUE))
 				throw CNMRException(NMR_ERROR_BEAMLATTICEINVALIDATTRIBUTE);
 			m_pMesh->setBeamLatticeMinLength(dValue);
 		}
-		else if (wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_BEAMLATTICE_CLIPPING) == 0) {
-			if (wcscmp(pAttributeValue, XML_3MF_BEAMLATTICE_CLIPMODE_INSIDE) == 0) {
+		else if ((strcmp(pAttributeName, XML_3MF_ATTRIBUTE_BEAMLATTICE_CLIPPINGMODE) == 0) ||
+			(strcmp(pAttributeName, XML_3MF_ATTRIBUTE_BEAMLATTICE_CLIPPING) == 0)) // legacy
+		{
+			if (strcmp(pAttributeValue, XML_3MF_BEAMLATTICE_CLIPMODE_INSIDE) == 0) {
 				m_eClipMode = MODELBEAMLATTICECLIPMODE_INSIDE;
 			}
-			else if (wcscmp(pAttributeValue, XML_3MF_BEAMLATTICE_CLIPMODE_OUTSIDE) == 0) {
+			else if (strcmp(pAttributeValue, XML_3MF_BEAMLATTICE_CLIPMODE_OUTSIDE) == 0) {
 				m_eClipMode = MODELBEAMLATTICECLIPMODE_OUTSIDE;
 			}
 			else {
 				m_eClipMode = MODELBEAMLATTICECLIPMODE_NONE;
 			}
 		}
-		else if (wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_BEAMLATTICE_CLIPPINGMESH) == 0) {
-			m_nClippingMeshID = fnWStringToUint32(pAttributeValue);
+		else if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_BEAMLATTICE_CLIPPINGMESH) == 0) {
+			m_nClippingMeshID = fnStringToUint32(pAttributeValue);
 			m_bHasClippingMeshID = true;
 		}
-		else if (wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_BEAMLATTICE_REPRESENTATIONMESH) == 0) {
-			m_nRepresentationMeshID = fnWStringToUint32(pAttributeValue);
+		else if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_BEAMLATTICE_REPRESENTATIONMESH) == 0) {
+			m_nRepresentationMeshID = fnStringToUint32(pAttributeValue);
 			m_bHasRepresentationMeshID = true;
 		}
-		else if (wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_BEAMLATTICE_ACCURACY) == 0) {
+		else if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_BEAMLATTICE_ACCURACY) == 0) {
 			// legacy, ignore it
 		}
-		else if (wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_BEAMLATTICE_CAPMODE) == 0) {
-			m_pMesh->setBeamLatticeCapMode(stringToCapMode(pAttributeValue));
+		else if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_BEAMLATTICE_CAPMODE) == 0) {
+			m_eDefaultCapMode = stringToCapMode(pAttributeValue);
+		}
+		else if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_BEAMLATTICE_BALLMODE) == 0) {
+			m_pMesh->setBeamLatticeBallMode(stringToBallMode(pAttributeValue));
+		}
+		else if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_BEAMLATTICE_BALLRADIUS) == 0) {
+			nfDouble dValue = fnStringToDouble(pAttributeValue);
+			if (std::isnan(dValue) || (dValue <= 0) || (dValue > XML_3MF_MAXIMUMCOORDINATEVALUE))
+				throw CNMRException(NMR_ERROR_BEAMLATTICEINVALIDATTRIBUTE);
+			m_dDefaultBallRadius = dValue;
+			m_pMesh->setDefaultBallRadius(dValue);
 		}
 		else
 			m_pWarnings->addException(CNMRException(NMR_ERROR_BEAMLATTICEINVALIDATTRIBUTE), mrwInvalidOptionalValue);
 	}
 
-	void CModelReaderNode_BeamLattice1702_BeamLattice::OnNSAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue, _In_z_ const nfWChar * pNameSpace)
+	void CModelReaderNode_BeamLattice1702_BeamLattice::OnNSAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue, _In_z_ const nfChar * pNameSpace)
 	{
-		
+		__NMRASSERT(pAttributeName);
+		__NMRASSERT(pAttributeValue);
+		__NMRASSERT(pNameSpace);
 
+		// Accept namespaced ball attributes (balls extension namespace)
+		if (strcmp(pNameSpace, XML_3MF_NAMESPACE_BEAMLATTICEBALLSSPEC) == 0) {
+			if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_BEAMLATTICE_BALLMODE) == 0) {
+				m_pMesh->setBeamLatticeBallMode(stringToBallMode(pAttributeValue));
+			}
+			else if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_BEAMLATTICE_BALLRADIUS) == 0) {
+				nfDouble dValue = fnStringToDouble(pAttributeValue);
+				if (std::isnan(dValue) || (dValue <= 0) || (dValue > XML_3MF_MAXIMUMCOORDINATEVALUE))
+					throw CNMRException(NMR_ERROR_BEAMLATTICEINVALIDATTRIBUTE);
+				m_dDefaultBallRadius = dValue;
+				m_pMesh->setDefaultBallRadius(dValue);
+			}
+			else
+				m_pWarnings->addException(CNMRException(NMR_ERROR_NAMESPACE_INVALID_ATTRIBUTE), mrwInvalidOptionalValue);
+		}
+		else
+			m_pWarnings->addException(CNMRException(NMR_ERROR_NAMESPACE_INVALID_ATTRIBUTE), mrwInvalidOptionalValue);
 	}
 	
-	void CModelReaderNode_BeamLattice1702_BeamLattice::OnNSChildElement(_In_z_ const nfWChar * pChildName, _In_z_ const nfWChar * pNameSpace, _In_ CXmlReader * pXMLReader)
+	void CModelReaderNode_BeamLattice1702_BeamLattice::OnNSChildElement(_In_z_ const nfChar * pChildName, _In_z_ const nfChar * pNameSpace, _In_ CXmlReader * pXMLReader)
 	{
 		__NMRASSERT(pChildName);
 		__NMRASSERT(pXMLReader);
 		__NMRASSERT(pNameSpace);
 
-		if (wcscmp(pNameSpace, XML_3MF_NAMESPACE_BEAMLATTICESPEC) == 0) {
-			if (wcscmp(pChildName, XML_3MF_ELEMENT_BEAMS) == 0)
+		if ((strcmp(pNameSpace, XML_3MF_NAMESPACE_BEAMLATTICESPEC) == 0) || (strcmp(pNameSpace, XML_3MF_NAMESPACE_BEAMLATTICEBALLSSPEC) == 0)) {
+			if (strcmp(pChildName, XML_3MF_ELEMENT_BEAMS) == 0)
 			{
-				PModelReaderNode pXMLNode = std::make_shared<CModelReaderNode_BeamLattice1702_Beams>(m_pModel, m_pMesh, m_pWarnings);
+				PModelReaderNode pXMLNode = std::make_shared<CModelReaderNode_BeamLattice1702_Beams>(m_pModel, m_pMesh, m_dDefaultRadius, m_eDefaultCapMode, m_pWarnings);
 				pXMLNode->parseXML(pXMLReader);
 			}
-			else if (wcscmp(pChildName, XML_3MF_ELEMENT_BEAMSETS) == 0)
+			else if (strcmp(pChildName, XML_3MF_ELEMENT_BEAMSETS) == 0)
 			{
 				PModelReaderNode pXMLNode = std::make_shared<CModelReaderNode_BeamLattice1702_BeamSets>(m_pMesh, m_pWarnings);
+				pXMLNode->parseXML(pXMLReader);
+			}
+			else if (strcmp(pChildName, XML_3MF_ELEMENT_BALLS) == 0)
+			{
+				PModelReaderNode pXMLNode = std::make_shared<CModelReaderNode_BeamLattice1702_Balls>(m_pModel, m_pMesh, m_dDefaultBallRadius, m_pWarnings);
 				pXMLNode->parseXML(pXMLReader);
 			}
 			else

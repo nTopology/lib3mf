@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation (Original Author)
-Copyright (C) 2015 netfabb GmbH
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -33,7 +32,7 @@ A builditem reader model node is a parser for the builditem node of an XML Model
 --*/
 
 #include "Model/Reader/v100/NMR_ModelReaderNode100_BuildItem.h"
-#include "Model/Reader/v100/NMR_ModelReaderNode100_MetaData.h"
+#include "Model/Reader/v100/NMR_ModelReaderNode100_MetaDataGroup.h"
 #include "Model/Classes/NMR_ModelBuildItem.h"
 
 #include "Model/Classes/NMR_ModelConstants.h"
@@ -43,17 +42,18 @@ A builditem reader model node is a parser for the builditem node of an XML Model
 
 namespace NMR {
 
-	CModelReaderNode100_BuildItem::CModelReaderNode100_BuildItem(_In_ CModel * pModel, _In_ PModelReaderWarnings pWarnings)
+	CModelReaderNode100_BuildItem::CModelReaderNode100_BuildItem(_In_ CModel * pModel, _In_ PModelWarnings pWarnings)
 		: CModelReaderNode(pWarnings)
 	{
 		__NMRASSERT(pModel);
 		m_pModel = pModel;
 		m_ObjectID = 0;
 		m_bHasID = false;
-		m_sPartNumber = L"";
+		m_sPartNumber = "";
 
 		m_hasPath = false;
 
+		m_bHasTransform = false;
 		m_mTransform = fnMATRIX3_identity();
 	}
 
@@ -74,12 +74,12 @@ namespace NMR {
 		CModelObject * pObject;
 		PPackageResourceID pID;
 		if (m_hasPath) {
-			if (m_pModel->curPath() != m_pModel->rootPath() )
+			if (m_pModel->currentPath() != m_pModel->rootPath() )
 				throw CNMRException(NMR_ERROR_REFERENCESTOODEEP);
 			pID = m_pModel->findPackageResourceID(m_sPath, m_ObjectID);
 		}
 		else
-			pID = m_pModel->findPackageResourceID(m_pModel->curPath(), m_ObjectID);
+			pID = m_pModel->findPackageResourceID(m_pModel->currentPath(), m_ObjectID);
 		if (!pID)
 			throw CNMRException(NMR_ERROR_COULDNOTFINDBUILDITEMOBJECT);
 
@@ -94,10 +94,13 @@ namespace NMR {
 		// Create Build Item
 		PModelBuildItem pBuildItem = std::make_shared<CModelBuildItem>(pObject, m_mTransform, m_pModel->createHandle());
 		if (!pBuildItem->isValidForSlices()) {
-			// throw CNMRException(NMR_ERROR_SLICETRANSFORMATIONPLANAR);
 			m_pWarnings->addException(CNMRException(NMR_ERROR_SLICETRANSFORMATIONPLANAR), mrwInvalidMandatoryValue);
 		}
 		
+		if (m_MetaDataGroup.get()) {
+			pBuildItem->metaDataGroup()->mergeMetaData(m_MetaDataGroup.get());
+		}
+
 		m_pModel->addBuildItem(pBuildItem);
 
 		// Set Item Reference
@@ -114,52 +117,77 @@ namespace NMR {
 		pBuildItem->setPath(m_sPath);
 	}
 
-	void CModelReaderNode100_BuildItem::OnAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue)
+	void CModelReaderNode100_BuildItem::OnAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue)
 	{
 		__NMRASSERT(pAttributeName);
 		__NMRASSERT(pAttributeValue);
 
-		if (wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_ITEM_OBJECTID) == 0) {
+		if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_ITEM_OBJECTID) == 0) {
 			if (m_bHasID)
 				throw CNMRException(NMR_ERROR_DUPLICATEBUILDITEMOBJECTID);
 
-			m_ObjectID = fnWStringToUint32(pAttributeValue);
+			m_ObjectID = fnStringToUint32(pAttributeValue);
 			m_bHasID = true;
 		}
-		else if (wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_ITEM_TRANSFORM) == 0) {
-			m_mTransform = fnMATRIX3_fromWideString(pAttributeValue);
+		else if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_ITEM_TRANSFORM) == 0) {
+			if (m_bHasTransform)
+				throw CNMRException(NMR_ERROR_DUPLICATETRANSFORM);
+
+			m_mTransform = fnMATRIX3_fromString(pAttributeValue);
+			m_bHasTransform = true;
 		}
-		else if (wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_ITEM_PARTNUMBER) == 0) {
-			m_sPartNumber = std::wstring(pAttributeValue);
+		else if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_ITEM_PARTNUMBER) == 0) {
+			m_sPartNumber = std::string(pAttributeValue);
 		}
 		else
 			m_pWarnings->addException(CNMRException(NMR_ERROR_NAMESPACE_INVALID_ATTRIBUTE), mrwInvalidOptionalValue);
 	}
 
-	void CModelReaderNode100_BuildItem::OnNSAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue, _In_z_ const nfWChar * pNameSpace)
+	void CModelReaderNode100_BuildItem::OnNSAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue, _In_z_ const nfChar * pNameSpace)
 	{
 		__NMRASSERT(pAttributeName);
 		__NMRASSERT(pAttributeValue);
 		__NMRASSERT(pNameSpace);
 
-		if (wcscmp(pNameSpace, XML_3MF_NAMESPACE_PRODUCTIONSPEC) == 0) {
-			if (wcscmp(pAttributeName, XML_3MF_PRODUCTION_UUID) == 0) {
+		if (strcmp(pNameSpace, XML_3MF_NAMESPACE_PRODUCTIONSPEC) == 0) {
+			if (strcmp(pAttributeName, XML_3MF_PRODUCTION_UUID) == 0) {
 				if (m_UUID.get())
 					throw CNMRException(NMR_ERROR_DUPLICATEUUID);
 				m_UUID = std::make_shared<CUUID>(pAttributeValue);
 			}
-			if (wcscmp(pAttributeName, XML_3MF_PRODUCTION_PATH) == 0) {
+			if (strcmp(pAttributeName, XML_3MF_PRODUCTION_PATH) == 0) {
 				if (m_hasPath)
 					throw CNMRException(NMR_ERROR_DUPLICATEPATH);
-				m_sPath = std::wstring(pAttributeValue);
+				m_sPath = std::string(pAttributeValue);
+				if (!fnStartsWithPathDelimiter(m_sPath)) {
+					m_pWarnings->addException(CNMRException(NMR_ERROR_PATH_NOT_ABSOLUTE), mrwInvalidOptionalValue);
+				}
 				m_hasPath = true;
 			}
 		}
 	}
 
-	std::wstring CModelReaderNode100_BuildItem::getPartNumber()
+	void CModelReaderNode100_BuildItem::OnNSChildElement(_In_z_ const nfChar * pChildName, _In_z_ const nfChar * pNameSpace, _In_ CXmlReader * pXMLReader)
 	{
-		return m_sPartNumber;
+		__NMRASSERT(pChildName);
+		__NMRASSERT(pXMLReader);
+		__NMRASSERT(pNameSpace);
+
+		if (strcmp(pNameSpace, XML_3MF_NAMESPACE_CORESPEC100) == 0) {
+			// Read a metadatagroup object
+			if (strcmp(pChildName, XML_3MF_ELEMENT_METADATAGROUP) == 0) {
+				PModelReaderNode pXMLNode = std::make_shared<CModelReaderNode100_MetaDataGroup>(m_pWarnings);
+				pXMLNode->parseXML(pXMLReader);
+
+				if (m_MetaDataGroup.get()) {
+					m_pWarnings->addException(CNMRException(NMR_ERROR_DUPLICATEMETADATAGROUP), mrwInvalidOptionalValue);
+				}
+				m_MetaDataGroup = dynamic_cast<CModelReaderNode100_MetaDataGroup*>(pXMLNode.get())->getMetaDataGroup();
+			}
+			else {
+				m_pWarnings->addException(CNMRException(NMR_ERROR_NAMESPACE_INVALID_ELEMENT), mrwInvalidOptionalValue);
+			}
+		}
 	}
 
 }

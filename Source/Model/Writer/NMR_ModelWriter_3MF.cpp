@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation (Original Author)
-Copyright (C) 2015 netfabb GmbH
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -32,6 +31,7 @@ A model writer exports the in memory represenation into a 3MF file.
 
 --*/
 
+#include "Model/Writer/SecureContent101/NMR_ModelWriterNode_KeyStore.h"
 #include "Model/Writer/NMR_ModelWriter_3MF.h"
 #include "Model/Writer/v100/NMR_ModelWriterNode100_Model.h"
 #include "Model/Classes/NMR_ModelConstants.h"
@@ -41,6 +41,7 @@ A model writer exports the in memory represenation into a 3MF file.
 
 #include "Common/Platform/NMR_XmlWriter.h"
 #include "Common/Platform/NMR_Platform.h"
+#include "Common/3MF_ProgressMonitor.h"
 
 namespace NMR {
 
@@ -54,24 +55,37 @@ namespace NMR {
 		if (pStream == nullptr)
 			throw CNMRException(NMR_ERROR_INVALIDPARAM);
 
+		monitor()->SetProgressIdentifier(ProgressIdentifier::PROGRESS_CREATEOPCPACKAGE);
+		monitor()->ReportProgressAndQueryCancelled(true);
+
 		// Create new OPC Package
-		createPackage(m_pModel.get());
+		createPackage(model().get());
+
+		monitor()->SetProgressIdentifier(ProgressIdentifier::PROGRESS_WRITEMODELSTOSTREAM);
+		monitor()->ReportProgressAndQueryCancelled(true);
 
 		// Write Package to Stream
 		writePackageToStream(pStream);
 
+		monitor()->SetProgressIdentifier(ProgressIdentifier::PROGRESS_CLEANUP);
+		monitor()->ReportProgressAndQueryCancelled(true);
+
 		// Release Memory
 		releasePackage();
+
+		monitor()->IncrementProgress(1);
+
+		monitor()->SetProgressIdentifier(ProgressIdentifier::PROGRESS_DONE);
+		monitor()->ReportProgressAndQueryCancelled(true);
 	}
 
-	void CModelWriter_3MF::writeSlicestackStream(_In_ CXmlWriter *pXMLWriter, _In_ CModel * pModel, _In_ CModelSliceStackResource *pSliceStackResource)
+	void CModelWriter_3MF::writeNonRootModelStream(_In_ CXmlWriter *pXMLWriter)
 	{
-		__NMRASSERT(pSliceStackResource != nullptr);
 		if (pXMLWriter == nullptr)
 			throw CNMRException(NMR_ERROR_INVALIDPARAM);
 
 		pXMLWriter->WriteStartDocument();
-		CModelWriterNode100_Model ModelNode(pModel, pXMLWriter, pSliceStackResource);
+		CModelWriterNode100_Model ModelNode(model().get(), pXMLWriter, monitor(), GetDecimalPrecision(), false);
 		ModelNode.writeToXML();
 
 		pXMLWriter->WriteEndDocument();
@@ -84,14 +98,15 @@ namespace NMR {
 		if (pXMLWriter == nullptr)
 			throw CNMRException(NMR_ERROR_INVALIDPARAM);
 
+		model()->setCurrentPath(model()->rootPath());
+
 		pXMLWriter->WriteStartDocument();
 
-		CModelWriterNode100_Model ModelNode(pModel, pXMLWriter);
+		CModelWriterNode100_Model ModelNode(pModel, pXMLWriter, monitor(), GetDecimalPrecision(), true);
 		ModelNode.writeToXML();
 
 		pXMLWriter->WriteEndDocument();
 
 		pXMLWriter->Flush();
 	}
-
 }

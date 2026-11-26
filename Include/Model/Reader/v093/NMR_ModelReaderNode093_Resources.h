@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation (Original Author)
-Copyright (C) 2015 netfabb GmbH
+Copyright (C) 2018 3MF Consortium
 
 All rights reserved.
 
@@ -48,14 +47,13 @@ namespace NMR {
 	class CModelReaderNode093_Resources : public CModelReaderNode {
 	protected:
 		PModelReader_ColorMapping m_pColorMapping;
-		PModelBaseMaterialResource m_pMaterialResource;
 
 		CModel * m_pModel;
-		virtual void OnAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar *  pAttributeValue);
-		virtual void OnNSChildElement(_In_z_ const nfWChar * pChildName, _In_z_ const nfWChar * pNameSpace, _In_ CXmlReader * pXMLReader);
+		virtual void OnAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar *  pAttributeValue);
+		virtual void OnNSChildElement(_In_z_ const nfChar * pChildName, _In_z_ const nfChar * pNameSpace, _In_ CXmlReader * pXMLReader);
 	public:
 		CModelReaderNode093_Resources() = delete;
-		CModelReaderNode093_Resources(_In_ CModel * pModel, _In_ PModelReaderWarnings pWarnings);
+		CModelReaderNode093_Resources(_In_ CModel * pModel, _In_ PModelWarnings pWarnings);
 		virtual void parseXML(_In_ CXmlReader * pXMLReader);
 	};
 

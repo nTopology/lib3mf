@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation (Original Author)
-Copyright (C) 2015 netfabb GmbH
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -35,11 +34,12 @@ This is the class for exporting the 3mf mesh node.
 #ifndef __NMR_MODELWRITERNODE100_MESH
 #define __NMR_MODELWRITERNODE100_MESH
 
-#include "Model/Writer/NMR_ModelWriterNode.h" 
-#include "Model/Writer/NMR_ModelWriter_ColorMapping.h" 
-#include "Model/Writer/NMR_ModelWriter_TexCoordMappingContainer.h" 
+#include "Model/Writer/NMR_ModelWriterNode_ModelBase.h" 
 #include "Model/Classes/NMR_ModelObject.h" 
 #include "Model/Classes/NMR_ModelMeshObject.h" 
+
+#include "Common/MeshInformation/NMR_MeshInformation_Properties.h"
+
 #include "Common/Platform/NMR_XmlWriter.h"
 #include <array>
 
@@ -50,35 +50,50 @@ This is the class for exporting the 3mf mesh node.
 #define MODELWRITERMESH100_TRIANGLELINESTARTLENGTH 14
 #define MODELWRITERMESH100_BEAMLATTICE_BEAMLINESTART "<b:beam v1=\""
 #define MODELWRITERMESH100_BEAMLATTICE_BEAMSTARTLENGTH 12
+#define MODELWRITERMESH100_BEAMLATTICE_BALLLINESTART "<b2:ball vindex=\""
+#define MODELWRITERMESH100_BEAMLATTICE_BALLSTARTLENGTH 17
 #define MODELWRITERMESH100_BEAMLATTICE_REFLINESTART  "<b:ref index=\""
 #define MODELWRITERMESH100_BEAMLATTICE_REFSTARTLENGTH 14
+#define MODELWRITERMESH100_BEAMLATTICE_BALLREFLINESTART  "<b2:ballref index=\""
+#define MODELWRITERMESH100_BEAMLATTICE_BALLREFSTARTLENGTH 19
+#define MODELWRITERMESH100_TRIANGLESETS_REFLINESTART "<t:ref index=\""
+#define MODELWRITERMESH100_TRIANGLESETS_REFSTARTLENGTH 14
 
 
 namespace NMR {
 
-	class CModelWriterNode100_Mesh : public CModelWriterNode {
+	class CModelWriterNode100_Mesh : public CModelWriterNode_ModelBase {
 	protected:
 		CModelMeshObject * m_pModelMeshObject;
-		PModelWriter_ColorMapping m_pColorMapping;
-		PModelWriter_TexCoordMappingContainer m_pTextureMappingContainer;
+
+		PMeshInformation_PropertyIndexMapping m_pPropertyIndexMapping;
 
 		nfBool m_bWriteMaterialExtension;
 		nfBool m_bWriteBeamLatticeExtension;
+		nfBool m_bWriteBeamLatticeBallsExtension;
+		nfBool m_bWriteVolumetricExtension;
+		nfBool m_bWriteTriangleSetExtension;
 
 		// Internal functions for an efficient and buffered output of raw XML data
 		std::array<nfChar, MODELWRITERMESH100_LINEBUFFERSIZE> m_VertexLine;
 		std::array<nfChar, MODELWRITERMESH100_LINEBUFFERSIZE> m_TriangleLine;
 		std::array<nfChar, MODELWRITERMESH100_LINEBUFFERSIZE> m_BeamLine;
+		std::array<nfChar, MODELWRITERMESH100_LINEBUFFERSIZE> m_BallLine;
 		std::array<nfChar, MODELWRITERMESH100_LINEBUFFERSIZE> m_BeamRefLine;
+		std::array<nfChar, MODELWRITERMESH100_LINEBUFFERSIZE> m_BallRefLine;
+		std::array<nfChar, MODELWRITERMESH100_LINEBUFFERSIZE> m_TriangleSetRefLine;
 		nfUint32 m_nVertexBufferPos;
 		nfUint32 m_nTriangleBufferPos;
 		nfUint32 m_nBeamBufferPos;
+		nfUint32 m_nBallBufferPos;
 		nfUint32 m_nBeamRefBufferPos;
+		nfUint32 m_nBallRefBufferPos;
+		nfUint32 m_nTriangleSetRefBufferPos;
 	private:
-		static const int m_snPosAfterDecPoint = 5;
-		static const int m_snPutDoubleFactor;
-		static __NMR_INLINE void putFloat(_In_ const nfFloat fValue, _In_ std::array<nfChar, MODELWRITERMESH100_LINEBUFFERSIZE> & line, _In_ nfUint32 & nBufferPos);
-		static __NMR_INLINE void putDouble(_In_ const nfDouble dValue, _In_ std::array<nfChar, MODELWRITERMESH100_LINEBUFFERSIZE> & line, _In_ nfUint32 & nBufferPos);
+		const int m_nPosAfterDecPoint;
+		const nfInt64 m_nPutDoubleFactor;
+		__NMR_INLINE void putFloat(_In_ const nfFloat fValue, _In_ std::array<nfChar, MODELWRITERMESH100_LINEBUFFERSIZE> & line, _In_ nfUint32 & nBufferPos);
+		__NMR_INLINE void putDouble(_In_ const nfDouble dValue, _In_ std::array<nfChar, MODELWRITERMESH100_LINEBUFFERSIZE> & line, _In_ nfUint32 & nBufferPos);
 
 	protected:
 		__NMR_INLINE void putVertexString(_In_ const nfChar * pszString);
@@ -91,18 +106,33 @@ namespace NMR {
 		__NMR_INLINE void putBeamUInt32(_In_ const nfUint32 nValue);
 		__NMR_INLINE void putBeamDouble(_In_ const nfDouble dValue);
 
+		__NMR_INLINE void putBallString(_In_ const nfChar * pszString);
+		__NMR_INLINE void putBallUInt32(_In_ const nfUint32 nValue);
+		__NMR_INLINE void putBallDouble(_In_ const nfDouble dValue);
+
 		__NMR_INLINE void putBeamRefString(_In_ const nfChar * pszString);
 		__NMR_INLINE void putBeamRefUInt32(_In_ const nfUint32 nValue);
+
+		__NMR_INLINE void putBallRefString(_In_ const nfChar * pszString);
+		__NMR_INLINE void putBallRefUInt32(_In_ const nfUint32 nValue);
+
+		__NMR_INLINE void putTriangleSetRefString(_In_ const nfChar* pszString);
+		__NMR_INLINE void putTriangleSetRefUInt32(_In_ const nfUint32 nValue);
 
 		__NMR_INLINE void writeVertexData(_In_ MESHNODE * pNode);
 		__NMR_INLINE void writeFaceData_Plain(_In_ MESHFACE * pFace, _In_opt_ const nfChar * pszAdditionalString);
 		__NMR_INLINE void writeFaceData_OneProperty(_In_ MESHFACE * pFace, _In_ const ModelResourceID nPropertyID, _In_ const ModelResourceIndex nPropertyIndex, _In_opt_ const nfChar * pszAdditionalString);
 		__NMR_INLINE void writeFaceData_ThreeProperties(_In_ MESHFACE * pFace, _In_ const ModelResourceID nPropertyID, _In_ const ModelResourceIndex nPropertyIndex1, _In_ const ModelResourceIndex nPropertyIndex2, _In_ const ModelResourceIndex nPropertyIndex3, _In_opt_ const nfChar * pszAdditionalString);
 		__NMR_INLINE void writeBeamData(_In_ MESHBEAM * pBeam, _In_ nfDouble dRadius, _In_ eModelBeamLatticeCapMode eDefaultCapMode);
+		__NMR_INLINE void writeBallData(_In_ MESHBALL * pBall, _In_ eModelBeamLatticeBallMode eBallMode, _In_ nfDouble dRadius);
 		__NMR_INLINE void writeRefData(_In_ INT nRefID);
+		__NMR_INLINE void writeBallRefData(_In_ INT nRefID);
+		__NMR_INLINE void writeTriangleSetRefData(_In_ INT nRefID);
 	public:
 		CModelWriterNode100_Mesh() = delete;
-		CModelWriterNode100_Mesh(_In_ CModelMeshObject * pModelMeshObject, _In_ CXmlWriter * pXMLWriter, _In_ PModelWriter_ColorMapping pColorMapping, _In_ PModelWriter_TexCoordMappingContainer pTextureMappingContainer, _In_ nfBool bWriteMaterialExtension, _In_ nfBool m_bWriteBeamLatticeExtension);
+		CModelWriterNode100_Mesh(_In_ CModelMeshObject * pModelMeshObject, _In_ CXmlWriter * pXMLWriter, _In_ PProgressMonitor pProgressMonitor,
+			_In_ PMeshInformation_PropertyIndexMapping pPropertyIndexMapping, _In_ int nPosAfterDecPoint, _In_ nfBool bWriteMaterialExtension, _In_ nfBool bWriteBeamLatticeExtension,
+			_In_ nfBool bWriteBeamLatticeBallsExtension, _In_ nfBool bWriteVolumetricExtension, _In_ nfBool bWriteTriangleSetExtension);
 		virtual void writeToXML();
 	};
 

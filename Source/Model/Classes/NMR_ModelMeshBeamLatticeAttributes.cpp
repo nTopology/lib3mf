@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2017 Autodesk Inc.
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -39,9 +39,10 @@ namespace NMR {
 	{
 		m_eClipMode = eModelBeamLatticeClipMode::MODELBEAMLATTICECLIPMODE_NONE;
 		m_bHasClippingMeshID = false;
-		m_nClippingMeshID = nullptr;
+		m_pClippingMeshUniqueID = nullptr;
 		m_bHasRepresentationMeshID = false;
-		m_nRepresentationID = nullptr;
+		m_pRepresentationUniqueID = nullptr;
+		m_eBallMode = eModelBeamLatticeBallMode::MODELBEAMLATTICEBALLMODE_NONE;
 	}
 
 	CModelMeshBeamLatticeAttributes::~CModelMeshBeamLatticeAttributes()

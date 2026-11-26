@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2017 Autodesk Inc.
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -26,7 +26,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Abstract:
 
-NMR_PackageResourceID.h defines the PackageResourceID Class.
+NMR_PackageResourceID.h defines the UniqueResourceID Class.
 
 --*/
 
@@ -38,37 +38,83 @@ NMR_PackageResourceID.h defines the PackageResourceID Class.
 
 #include <memory>
 #include <map>
+#include <unordered_map>
 #include <vector>
 
 namespace NMR {
 
+	class CResourceHandler;
+
+
+	class CPackageModelPath {
+	private:
+		CResourceHandler* m_pResourceHandler;
+		std::string m_sPath;
+
+	public:
+		CPackageModelPath(CResourceHandler* pResourceHandler, std::string sPath);
+
+		friend class CResourceHandler;
+
+		std::string getPath();
+		void setPath(std::string sPath);
+	};
+	typedef std::shared_ptr<CPackageModelPath> PPackageModelPath;
+
+
 	class CPackageResourceID {
 	private:
-		std::string m_path;
-		ModelResourceID m_id;	// combination of those two must be unique
+		CResourceHandler* m_pResourceHandler;
+		// combination of those two must be unique
+		PPackageModelPath m_pModelPath;
+		ModelResourceID m_id;
 
-		PackageResourceID m_uniqueID;	// the unique Identifier
+		// the unique Identifier that MUST not be persistent into a .3mf-file.
+		// it is only valid thoughout the lifetime of a NMR::CModel
+		UniqueResourceID m_uniqueID;
+
+		void setUniqueID(UniqueResourceID id);
+
 	public:
-		void set(std::string p, ModelResourceID id);
-		void get(std::string& p);
-		void get(ModelResourceID& id);
-		void setUniqueID(PackageResourceID id);
-		PackageResourceID getUniqueID();
+		CPackageResourceID(CResourceHandler* pResourceHandler, PPackageModelPath pModelPath, ModelResourceID nID);
+
+		friend class CResourceHandler;
+
+		std::string getPath();
+		PPackageModelPath getPackageModelPath();
+		ModelResourceID getModelResourceID();
+		UniqueResourceID getUniqueID();
+
+		static void setModelPath(std::shared_ptr<CPackageResourceID> pPackageResourceID, PPackageModelPath pPath);
+		CResourceHandler * getResourceHandler();
 	};
 	typedef std::shared_ptr<CPackageResourceID> PPackageResourceID;
 
+
+	using UniqueIDPackageIdMap = std::unordered_map<UniqueResourceID, PPackageResourceID>;
+	using UniqueIdPackageIdPair = std::pair<UniqueResourceID, PPackageResourceID>;
+
 	class CResourceHandler {
 	private:
-		// unique IDs to CPackageResourceID
-		std::map<PackageResourceID, PPackageResourceID> m_resourceIDs;
-	public:
-		PPackageResourceID getNewRessourceID(std::wstring path, ModelResourceID id);
-		PPackageResourceID getNewRessourceID(std::string path, ModelResourceID id);	// this is supposed to be the only way to generate a CPackageResourceID
-		PPackageResourceID findRessourceID(PackageResourceID id);
-		PPackageResourceID findRessourceID(std::wstring path, ModelResourceID id);
-		PPackageResourceID findRessourceID(std::string path, ModelResourceID id);
+		// getPath-strings to ModelPaths
+		std::unordered_map<std::string, PPackageModelPath> m_PathToModelPath;
 
-		void FlattenIDs();
+		// unique IDs to CPackageResourceID
+		UniqueIDPackageIdMap m_resourceIDs;
+		std::map<std::pair<ModelResourceID, PPackageModelPath>, PPackageResourceID> m_IdAndPathToPackageResourceIDs;
+	public:
+		PPackageResourceID makePackageResourceID(std::string path, ModelResourceID id);	// this is supposed to be the only way to generate a CPackageResourceID
+		
+		PPackageResourceID findResourceIDByUniqueID(UniqueResourceID id);
+		PPackageResourceID findResourceIDByPair(std::string path, ModelResourceID id);
+
+		PPackageModelPath findPackageModelPath(std::string sPath);
+		PPackageModelPath makePackageModelPath(std::string sPath);
+
+		void updateModelPath(PPackageResourceID pPackageResourceID, PPackageModelPath pNewPath);
+		std::vector<PPackageModelPath> retrieveAllModelPaths();
+
+		void removePackageResourceID(PPackageResourceID pPackageResourceID);
 
 		void clear();
 	};

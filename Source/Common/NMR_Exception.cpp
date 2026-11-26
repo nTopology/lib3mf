@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -37,16 +36,11 @@ Each exception is identified via a global ErrorCode
 #include <cmath>
 
 namespace NMR {
-
-	CNMRException::CNMRException(_In_ nfError errorcode) : std::exception()
+	std::string errorCodeToMessage(nfError errorcode)
 	{
-		m_errorcode = errorcode;
-	}
-
-	const char * CNMRException::what() const throw ()
-	{
-		switch (m_errorcode) {
-
+		switch (errorcode) {
+		// Success / user interaction (0x0XXX)
+		case NMR_USERABORTED: return "The called function was aborted by the user";
 		// General error codes (0x1XXX)
 		case NMR_ERROR_NOTIMPLEMENTED: return "The called function is not fully implemented";
 		case NMR_ERROR_INVALIDPARAM: return "The call parameter to the function was invalid";
@@ -66,7 +60,7 @@ namespace NMR {
 		case NMR_ERROR_ABSTRACT: return "The function called is abstract and should not have been called";
 		case NMR_ERROR_INVALIDHEADBLOCK: return "The current block is not assigned";
 		case NMR_ERROR_COMINITIALIZATIONFAILED: return "COM CoInitialize failed";
-		case NMR_ERROR_STANDARDCPPEXCEPTION: return "A Standard C++ Exception occured";
+		case NMR_ERROR_STANDARDCPPEXCEPTION: return "A Standard C++ Exception occurred";
 		case NMR_ERROR_INVALIDMESH: return "No mesh has been given";
 		case NMR_ERROR_COULDNOTCREATECONTEXT: return "Context could not be created";
 		case NMR_ERROR_EMPTYSTRINGTOINTCONVERSION: return "Wanted to convert empty string to integer";
@@ -83,8 +77,8 @@ namespace NMR {
 		case NMR_ERROR_INVALIDHEXVALUE: return "Invalid hex value";
 		case NMR_ERROR_RANGEERROR: return "Range error";
 		case NMR_ERROR_INVALIDPOINTER: return "Passed invalid null pointer";
-        case NMR_ERROR_XMLELEMENTNOTOPEN: return "XML Element not open";
-        case NMR_ERROR_INVALIDXMLNAME: return "Invalid XML Name";
+		case NMR_ERROR_XMLELEMENTNOTOPEN: return "XML Element not open";
+		case NMR_ERROR_INVALIDXMLNAME: return "Invalid XML Name";
 		case NMR_ERROR_INVALIDINTEGERTRIPLET: return "Invalid Integer Triplet String";
 		case NMR_ERROR_INVALIDZIPENTRYKEY: return "Invalid ZIP Entry key";
 		case NMR_ERRORINVALIDZIPNAME: return "Invalid ZIP Name";
@@ -120,8 +114,18 @@ namespace NMR {
 		case NMR_ERROR_DUPLICATE_PRINTTICKET: return "Document contains more than one printticket.";
 		case NMR_ERROR_OPC_DUPLICATE_RELATIONSHIP_ID: return "Document contains a duplicate relationship ID.";
 		case NMR_ERROR_INVALIDRELATIONSHIPTYPEFORTEXTURE: return "A texture must use a OPC part with relationshiptype 3D Texture.";
-		case NMR_ERROR_IMPORTSTREAMISEMPTY: return "An attachment to be read does coes not have any content.";
-
+		case NMR_ERROR_IMPORTSTREAMISEMPTY: return "An attachment to be read does not have any content.";
+		case NMR_ERROR_UUIDGENERATIONFAILED: return "Generation of a UUID failed.";
+		case NMR_ERROR_ZIPENTRYNON64_TOOLARGE: return "A ZIP Entry is too large for non zip64 zip-file";
+		case NMR_ERROR_ATTACHMENTTOOLARGE: return "An individual custom attachment is too large.";
+		case NMR_ERROR_ZIPCALLBACK: return "Error in libzip callback.";
+		case NMR_ERROR_ZIPCONTAINSINCONSISTENCIES: return "ZIP file contains inconsistencies. It might load with errors or incorrectly.";
+		case NMR_ERROR_XMLNAMESPACEALREADYREGISTERED: return "An XML namespace is already registered.";
+		case NMR_ERROR_XMLPREFIXALREADYREGISTERED: return "An XML prefix is already registered.";
+		case NMR_ERROR_COULDNOTINITINFLATE: return "Failed to initialize a zlib buffer";
+		case NMR_ERROR_COULDNOTINFLATE: return "Failed to decompress part";
+		case NMR_ERROR_COULDNOTINITDEFLATE: return "Failed to initialize a zlib buffer";
+		case NMR_ERROR_TOOMANYSLICES: return "Too many slices";
 
 		// Unhandled exception
 		case NMR_ERROR_GENERICEXCEPTION: return NMR_GENERICEXCEPTIONSTRING;
@@ -130,8 +134,8 @@ namespace NMR {
 		// Core framework error codes (0x2XXX)
 		case NMR_ERROR_NOPROGRESSINTERVAL: return "No Progress Interval has been specified in the progress handler";
 		case NMR_ERROR_DUPLICATENODE: return "An Edge with two identical nodes has been tried to added to a mesh";
-		case NMR_ERROR_TOOMANYNODES: return "The mesh exceeds more than NMR_MESH_MAXEDGECOUNT (around two billion) nodes";
-		case NMR_ERROR_TOOMANYFACES: return "The mesh exceeds more than NMR_MESH_MAXFACECOUNT (around two billion) faces";
+		case NMR_ERROR_TOOMANYNODES: return "The mesh exceeds more than NMR_MESH_MAXEDGECOUNT (2^31-1, around two billion) nodes";
+		case NMR_ERROR_TOOMANYFACES: return "The mesh exceeds more than NMR_MESH_MAXFACECOUNT (2^31-1, around two billion) faces";
 		case NMR_ERROR_INVALIDNODEINDEX: return "The index provided for the node is invalid";
 		case NMR_ERROR_INVALIDFACEINDEX: return "The index provided for the face is invalid";
 		case NMR_ERROR_INVALIDMESHTOPOLOGY: return "The mesh topology structure is corrupt";
@@ -148,7 +152,7 @@ namespace NMR {
 		case NMR_ERROR_INVALIDFACECOUNT: return "The specified facecount in the file was not valid";
 		case NMR_ERROR_INVALIDUNITS: return "The specified units of the file was not valid";
 		case NMR_ERROR_COULDNOTSETUNITS: return "The specified units could not be set (for example, the CVectorTree already had some entries)";
-		case NMR_ERROR_TOOMANYEDGES: return "The mesh exceeds more than NMR_MESH_MAXEDGECOUNT (around two billion) edges";
+		case NMR_ERROR_TOOMANYEDGES: return "The mesh exceeds more than NMR_MESH_MAXEDGECOUNT (2^31-1, around two billion) edges";
 		case NMR_ERROR_INVALIDEDGEINDEX: return "The index provided for the edge is invalid";
 		case NMR_ERROR_DUPLICATEEDGE: return "The mesh has an face with two identical edges";
 		case NMR_ERROR_MANIFOLDEDGES: return "Could not add face to an edge, because it was already two-manifold";
@@ -171,7 +175,7 @@ namespace NMR {
 		case NMR_ERROR_DUPLICATETEXTURE: return "Texture is already existing";
 		case NMR_ERROR_DUPLICATETEXTUREID: return "Texture ID is already existing";
 		case NMR_ERROR_PARTTOOLARGE: return "Part is too large";
-		case NMR_ERROR_DUPLICATETEXTUREPATH: return "Texture path is already existing";
+		case NMR_ERROR_DUPLICATETEXTUREPATH: return "Texture getPath is already existing";
 		case NMR_ERROR_DUPLICATETEXTUREWIDTH: return "Texture width is already existing";
 		case NMR_ERROR_DUPLICATETEXTUREHEIGHT: return "Texture height is already existing";
 		case NMR_ERROR_DUPLICATETEXTUREDEPTH: return "Texture depth is already existing";
@@ -187,7 +191,16 @@ namespace NMR {
 		case NMR_ERROR_DUPLICATECOLORID: return "Color ID is already existing";
 		case NMR_ERROR_INVALIDMESHINFORMATIONDATA: return "Mesh Information Block was not assigned";
 		case NMR_ERROR_INVALIDMESHINFORMATION: return "Mesh Information Object was not assigned";
-		case NMR_ERROR_TOOMANYBEAMS: return "The mesh exceeds more than NMR_MESH_MAXBEAMCOUNT (around two billion) beams";
+		case NMR_ERROR_TOOMANYBEAMS: return "The mesh exceeds more than NMR_MESH_MAXBEAMCOUNT (2^31-1, around two billion) beams";
+		case NMR_ERROR_TOOMANYBALLS: return "The mesh exceeds more than NMR_MESH_MAXBALLCOUNT (2^31-1, around two billion) balls";
+		case NMR_ERROR_INVALIDSLICEPOLYGON: return "Invalid slice polygon index";
+		case NMR_ERROR_INVALIDSLICEVERTEX: return "Invalid slice vertex index";
+		case NMR_ERROR_DUPLICATETRIANGLESET: return "Duplicate triangle set";
+		case NMR_ERROR_TOOMANYTRIANGLESETS: return "Too many triangle sets";
+		case NMR_ERROR_TRIANGLESETINVALIDATTRIBUTE: return "Invalid triangle set attribute";
+		case NMR_ERROR_TRIANGLESETMISSINGREFERENCEINDEX: return "Missing triangle set reference index";
+		case NMR_ERROR_TRIANGLESETNAMEMISSING: return "Triangle set name missing";
+		case NMR_ERROR_TRIANGLESETIDENTIFIERMISSING : return "Triangle set identifier missing";
 
 		// Model error codes (0x8XXX)
 		case NMR_ERROR_OPCREADFAILED: return "3MF Loading - OPC could not be loaded";
@@ -206,7 +219,7 @@ namespace NMR {
 		case NMR_ERROR_OPCCONTENTTYPEMISMATCH: return "Content type mismatch";
 		case NMR_ERROR_OPCRELATIONSHIPENUMERATIONFAILED: return "Could not enumerate relationships";
 		case NMR_ERROR_OPCRELATIONSHIPNOTFOUND: return "Could not find relationship type";
-		case NMR_ERROR_OPCRELATIONSHIPNOTUNIQUE: return "Ambiguous relationship type";
+		case NMR_ERROR_OPCRELATIONSHIPNOTUNIQUE: return "Relationship type not unique";
 		case NMR_ERROR_OPCCOULDNOTGETMODELSTREAM: return "Could not get OPC Model Stream";
 		case NMR_ERROR_CREATEXMLREADERFAILED: return "Could not create XML Reader";
 		case NMR_ERROR_SETXMLREADERINPUTFAILED: return "Could not set XML reader input";
@@ -301,7 +314,6 @@ namespace NMR {
 		case NMR_ERROR_COULDNOTGETHANDLE: return "Could not get handle";
 		case NMR_ERROR_BUILDITEMNOTFOUND: return "Build item not found";
 		case NMR_ERROR_OPCCOULDNOTGETTEXTUREURI: return "Could not get texture URI";
-		case NMR_ERROR_OPCCOULDNOTGETTEXTURESTREAM: return "Could not get texture stream";
 		case NMR_ERROR_MODELRELATIONSHIPSETREADFAILED: return "Model Relationship read failed";
 		case NMR_ERROR_NOTEXTURESTREAM: return "Texture stream is not available";
 		case NMR_ERROR_COULDNOTCREATESTREAM: return "Could not create stream";
@@ -326,7 +338,7 @@ namespace NMR {
 		case NMR_ERROR_SLICESTACK_SLICESANDSLICEREF: return "Slicestack contains slices and slicerefs";
 		case NMR_ERROR_ILLFORMATUUID: return "A UUID is ill formatted";
 		case NMR_ERROR_INVALIDSLICESTACK: return "A slice stack resource is invalid";
-		case NMR_ERROR_DUPLICATEPATH: return "Duplicate path attribute";
+		case NMR_ERROR_DUPLICATEPATH: return "Duplicate getPath attribute";
 		case NMR_ERROR_DUPLICATEUUID: return "Duplicate UUID attribute";
 		case NMR_ERROR_REFERENCESTOODEEP: return "References in production extension go deeper than one level.";
 		case NMR_ERROR_SLICEREFSTOODEEP: return "A slicestack referenced via a slicepath cannot reference another slicestack.";
@@ -353,13 +365,157 @@ namespace NMR {
 		case NMR_ERROR_DUPLICATETHUMBNAIL: return "Duplicate thumbnail.";
 		case NMR_ERROR_DUPLICATEPID: return "Duplicate Property ID.";
 		case NMR_ERROR_DUPLICATEPINDEX: return "Duplicate Property Index.";
-		case NMR_ERROR_MISSINGDEFAULTPID: return "A MeshObject with triangle-properties is missing a default property.";
-		case NMR_ERROR_INVALIDDEFAULTPID: return "A MeshObject with triangle-properties has an invalid default property.";
+		case NMR_ERROR_MISSINGOBJECTLEVELPID: return "A MeshObject with triangle-properties is missing an object-level property.";
+		case NMR_ERROR_INVALIDOBJECTLEVELPID: return "A MeshObject with triangle-properties has an invalid object-level property.";
 		case NMR_ERROR_BUILDITEMOBJECT_MUSTNOTBE_OTHER: return "Build-item must not reference object of type OTHER.";
-		case NMR_ERROR_DEFAULTPID_ON_COMPONENTSOBJECT: return "A components object must not have a default PID.";
+		case NMR_ERROR_OBJECTLEVELPID_ON_COMPONENTSOBJECT: return "A components object must not have an object-level PID.";
 		case NMR_ERROR_BEAMLATTICENODESTOOCLOSE: return "Nodes used for a beam are closer then the specified minimal length.";
 		case NMR_ERROR_BEAMLATTICE_INVALID_REPRESENTATIONRESOURCE: return "The resource defined as representationmesh is invalid.";
 		case NMR_ERROR_BEAMLATTICE_INVALID_OBJECTTYPE: return "Beamlattice is defined on wrong object type.";
+		case NMR_ERROR_SLICE_ONEVERTEX: return "Slice only contains one vertex.";
+		case NMR_ERROR_SLICE_ONEPOINT: return "Slice contains only one point within a polygon";
+		case NMR_ERROR_INVALIDTILESTYLE: return "Invalid Tile Style";
+		case NMR_ERROR_INVALIDFILTER: return "Invalid Filter";
+		case NMR_ERROR_DUPLICATEMETADATAGROUP: return "Duplicate MetaDataGroup";
+		case NMR_ERROR_SLICES_MIXING_SLICES_WITH_SLICEREFS: return "A SliceStack must not contain slices and slicerefs";
+		case NMR_ERROR_SLICES_SLICEREF_CIRCULAR: return "SliceStack references must not be circular";
+		case NMR_ERROR_SLICES_REFS_Z_NOTINCREASING: return "z-position of slicerefs is not increasing";
+		case NMR_ERROR_SLICES_REFS_LEVELTOODEEP: return "level of slicereferences is too deep";
+		case NMR_ERROR_PROPERTYIDALREADYREGISTERED: return "Property already registered";
+		case NMR_ERROR_INVALIDPROPERTYRESOURCEID: return "Invalid Property Resource ID";
+		case NMR_ERROR_PROPERTYIDNOTFOUND: return "Property ID not found";
+		case NMR_ERROR_TOOMANYCOLORS: return "Too many colors.";
+		case NMR_ERROR_TOOMANYCOMPOSITES: return "Too many composites.";
+		case NMR_ERROR_MIXINGRATIO_OUTOFRANGE: return "Mixing ratio of composite out of range.";
+		case NMR_ERROR_MIXINGRATIO_MISSING: return "A composite mixing ratio is missing.";
+		case NMR_ERROR_MIXINGRATIO_TOOMANY: return "Too many composite mixing ratio in the list of values";
+		case NMR_ERROR_MULTIPROPERTIES_MUST_NOT_CONTAIN_MULTIPROPERTIES: return "A multiproperties must not contain another multiproperties";
+		case NMR_ERROR_MULTIPROPERTIES_MUST_NOT_CONTAIN_MULTIPLE_MATERIALS: return "A multiproperties must not contain multiple materials";
+		case NMR_ERROR_MULTIPROPERTIES_MUST_NOT_CONTAIN_MULTIPLE_COLORGOURPS: return "A multiproperties must not contain multiple colorgroups";
+		case NMR_ERROR_MULTIPROPERTIES_INVALID_RESOURCE: return "A resource of invalid type was passed to a MultiPropertyGroup";
+		case NMR_ERROR_MULTIPROPERTIES_NOT_ENOUGH_PROPERTYIDS_SPECIFIED: return "A MultiProperty does not define enough PropertyIDs";
+		case NMR_ERROR_MULTIPROPERTIES_MISSING_PIDS: return "A MultiProperty-element is missing the pids-attribute";
+		case NMR_ERROR_MULTIPROPERTIES_DIFFERNT_NUMBER_OF_BLENDMETHODS_AND_PIDS: return "The number of blendmethods and pids does not match";
+		case NMR_ERROR_DUPLICATE_PIDS: return "Multiproperties element has duplicate pids attribute";
+		case NMR_ERROR_DUPLICATE_BLENDMETHOS: return "Multiproperties element has duplicate blendmethods attribute";
+		case NMR_ERROR_INVALID_BLENDMETHOD_ATTRIBUTE: return "A blendmethods attribute is invalid";
+		case NMR_ERROR_MULTIPROPERTIES_INVALID_MULTI_ELEMENT: return "A multi-element is invalid";
+		case NMR_ERROR_INVALID_RESOURCE_INDEX: return "A Resource Index is invalid";
+		case NMR_ERROR_VERSION093_NOT_SUPPORTED: return "This document contains content from Version 093 of the core-specification. This is not fully supported by Lib3MF version 2 or later.";
+		case NMR_ERROR_ATTACHMENTMODELMISMATCH: return "The model of an attachment does not match the model of a resource.";
+		case NMR_ERROR_DUPLICATEPACKAGEPATH: return "The PackagePath of a model is not unique.";
+		case NMR_ERROR_PRODUCTIONEXTENSION_REQUIRED: return "Serialization of this Model requires the production extension.";
+		case NMR_ERROR_MODELRESOURCE_IN_DIFFERENT_MODEL: return "Referenced model resource must not be in a different model.";
+		case NMR_ERROR_PATH_NOT_ABSOLUTE: return "A path attribute element is not absolute.";
+		case NMR_ERROR_BEAMSET_IDENTIFIER_NOT_UNIQUE: return "A beamset identifier is not unique.";
+		case NMR_ERROR_DUPLICATETRANSFORM: return "A transform attribute is duplicated";
+		case NMR_ERROR_INVALIDCOMPONENTRESOURCE: return "A component resource is invalid.";
+		
+			//keystore error codes
+		case NMR_ERROR_KEYSTOREDUPLICATECONSUMER: return "A consumer already exists for this consumerid";
+		case NMR_ERROR_KEYSTOREDUPLICATECONSUMERID: return "The attribute consumerid is duplicated";
+		case NMR_ERROR_KEYSTOREDUPLICATECONSUMERKEYID: return "The KeyStore Consumer key id is not unique ";
+		case NMR_ERROR_KEYSTOREDUPLICATERESOURCEDATAPATH: return "The attribute path is duplicated";
+		case NMR_ERROR_KEYSTOREDUPLICATECONSUMERINDEX: return "The attribute consumerindex is duplicated";
+		case NMR_ERROR_KEYSTOREDUPLICATERESOURCEDATA: return "A ResourceData already exists for this path in the KeyStore";
+		case NMR_ERROR_KEYSTOREDUPLICATEACCESSRIGHT: return "An AccessRight already exists for this consumer in a ResourceDataGroup";
+		case NMR_ERROR_KEYSTOREDUPLICATERESOURCEDATAGROUP: return "A resource data group already exist for this keyuuid";
+		case NMR_ERROR_KEYSTOREINVALIDALGORITHM: return "The algorithm attribute is invalid";
+		case NMR_ERROR_KEYSTOREINVALIDENCODING: return "The keystore element value is not base64 encoded.";
+		case NMR_ERROR_KEYSTOREINVALIDCOMPRESSION: return "The KeyStore ResourceData compression is invalid";
+		case NMR_ERROR_KEYSTOREINVALIDCIPHERVALUE: return "Invalid CipherValue elment value";
+		case NMR_ERROR_KEYSTOREINVALIDMGF: return "The mfgalgorithm attribute has invalid value";
+		case NMR_ERROR_KEYSTOREINVALIDDIGEST: return "The digestmethod attribute has invalid value";
+		case NMR_ERROR_KEYSTOREINVALIDCONSUMERINDEX: return "The attribute consumerindex is invalid";
+		case NMR_ERROR_KEYSTOREINVALIDKEYUUID: return "Attribute keyuuid is invalid, a default value has been assigned.";
+		case NMR_ERROR_KEYSTOREMISSINGCIPHERDATA: return "Element cipherdata is missing";
+		case NMR_ERROR_KEYSTOREMISSINGCONSUMERID: return "Attribute consumerid is missing, a default value has been assigned.";
+		case NMR_ERROR_KEYSTOREMISSINGCONSUMERINDEX: return "Attribute consumerindex is missing, a default value has been assigned.";
+		case NMR_ERROR_KEYSTOREMISSINGKEKPARAMS: return "Element kekparams is missing, , default values have been assigned.";
+		case NMR_ERROR_KEYSTOREMISSINGCEKPARAMS: return "Element cekparams is missing.";
+		case NMR_ERROR_KEYSTOREMISSINGKEYUUID: return "Attribute keyuuid is missing, , a default value has been assigned.";
+		case NMR_ERROR_KEYSTOREMISSINGPATH: return "Attribute path is missing on a resouredata";
+		case NMR_ERROR_KEYSTOREMISSINGALGORTHM: return "An algorithm attribute is missing, a default value has been assigned.";
+		case NMR_ERROR_KEYSTOREINCONSISTENTKEKPARAMS: return "Element kekparams ha invalid configuration";
+		case NMR_ERROR_KEYSTOREOPCCOULDNOTGETSTREAM: return "Could not get KeyStore stream";
+		case NMR_ERROR_KEYSTOREUNSUPPORTEDALGORITHM: return "The algorithm attribute is unsupported";
+		case NMR_ERROR_KEYSTORETOOMANYELEMENTS: return "Too many elements added to a keystore tree";
+
+		case NMR_ERROR_INVALIDIMAGE3DSIZE: return "Invalid Image3D Size";
+		case NMR_ERROR_TOOMANYCHANNELSELECTORS: return "Too many channel selectors";
+		case NMR_ERROR_TOOMANYVOLUMETRICCHANNELS: return "Too many volumetric channels";
+		case NMR_ERROR_COULDNOTMAPPACKAGEID: return "Could not map package ID";
+		case NMR_ERROR_DUPLICATEVOLUMETRICCHANNEL: return "Duplicate volumetric channel";
+		case NMR_ERROR_COULDNOTREMOVEVOLUMETRICLAYER: return "Could not remove volumetric layer";
+		case NMR_ERROR_COULDNOTREINDEXVOLUMETRICLAYER: return "Could not reindex volumetric layer";
+		case NMR_ERROR_COULDNOTREINDEXCHANNELSELECTOR: return "Could not reindex channel selector";
+		case NMR_ERROR_DUPLICATEIMAGE3DNAME: return "Duplicate Image3D Name";
+		case NMR_ERROR_DUPLICATEIMAGESTACKSIZE: return "Duplicate Image3D Size";			
+		case NMR_ERROR_DUPLICATEIMAGESTACKSHEETCOUNT: return "Duplicate Image3D Sheet count";
+		case NMR_ERROR_MISSINGIMAGESTACKSIZE: return "Missing 3D Image Size";
+		case NMR_ERROR_MISSINGIMAGESTACKSHEETCOUNT: return "Missing 3D Image Sheetcount";
+		case NMR_ERROR_MISSINGIMAGE3DNAME: return "Missing 3D Image Name";
+		case NMR_ERROR_INVALIDIMAGSHEETCOUNT: return "Invalid Image3D Sheet Count";
+		case NMR_ERROR_IMAGESHEETNOTFOUND: return "Image 3D Sheet not found";
+		case NMR_ERROR_TOOMANYIMAGESHEETS: return "Too many Image3D sheets";
+		case NMR_ERROR_MISSINGIMAGE3DSHEETPATH: return "Missing Image3D sheet path";
+		case NMR_ERROR_DUPLICATEVOLUMETRICBACKGROUND: return "Duplicate Volumetric Background";
+		case NMR_ERROR_INVALIDVOLUMETRICBACKGROUND: return "Invalid Volumetric Background";
+		case NMR_ERROR_MISSINGVOLUMETRICDSTCHANNELNAME: return "Missing Volumetric DstChannel Name";
+		case NMR_ERROR_MISSINGVOLUMETRICLAYERBLENDMETHOD: return "Missing Volumetric Layer Blend Method";
+		case NMR_ERROR_DUPLICATEVOLUMETRICBLENDMETHOD: return "Duplicate Volumetric Blend Method";
+		case NMR_ERROR_MISSINGVOLUMETRICLAYERTRANSFORM: return "Missing Volumetric Layer Transform";
+		case NMR_ERROR_DUPLICATEVOLUMETRICTRANSFORM: return "Duplicate Volumetric Transform";
+		case NMR_ERROR_DUPLICATEVOLUMETRICSRCALPHA: return "Duplicate Volumetric Src Alpha";
+		case NMR_ERROR_INVALIDVOLUMETRICSRCALPHA: return "Invalid Volumetric Src Alpha";
+		case NMR_ERROR_DUPLICATEVOLUMETRICDSTALPHA: return "Duplicate Volumetric Dst Alpha";
+		case NMR_ERROR_INVALIDVOLUMETRICDSTALPHA: return "Invalid Volumetric Dst Alpha";
+		case NMR_ERROR_DUPLICATEMASKCHANNELSELECTOR: return "Duplicate Mask Channel Selector";
+		case NMR_ERROR_DUPLICATEVOLUMETRICMINVALUE: return "Duplicate Volumetric Min Value";
+		case NMR_ERROR_INVALIDVOLUMETRICMINVALUE: return "Invalid Volumetric Min Value";
+		case NMR_ERROR_DUPLICATEVOLUMETRICMAXVALUE: return "Duplicate Volumetric Max Value"; 
+		case NMR_ERROR_INVALIDVOLUMETRICMAXVALUE: return "Invalid Volumetric Max Value";
+		case NMR_ERROR_MISSINGCHANNELSELECTORID: return "Missing Channel Selector ID";
+		case NMR_ERROR_MISSINGCHANNELSELECTORTILESTYLE: return "Missing Channel Selector TileStyle";
+		case NMR_ERROR_DUPLICATEVOLUMETRICTILESTYLE: return "Duplicate Volumetric TileStyle";
+		case NMR_ERROR_DUPLICATEVOLUMETRICFILTER: return "Duplicate Volumetric Filter";
+		case NMR_ERROR_DUPLICATEVOLUMETRICSOURCECHANNEL: return "Duplicate Volumetric Source Channel";
+		case NMR_ERROR_DUPLICATEVOLUMETRICDESTINATIONCHANNEL: return "Duplicate Volumetric Destination Channel";
+		case NMR_ERROR_DUPLICATEVOLUMEDATABOUNDARY: return "Duplicate VolumeData Levelset";
+		case NMR_ERROR_DUPLICATEVOLUMEDATATRANSFORM: return "Duplicate VolumeData Transform";
+		case NMR_ERROR_DUPLICATEVOLUMEDATACHANNEL: return "Duplicate VolumeData Channel";
+		case NMR_ERROR_DUPLICATEVOLUMEDATAFIELDID: return "Duplicate VolumeData VolumetricStackID";
+		case NMR_ERROR_DUPLICATEVOLUMEDATASOLIDTHRESHOLD: return "Duplicate VolumeData Solid Threshold";
+		case NMR_ERROR_MISSINGVOLUMEDATACHANNEL: return "Missing VolumeData Channel";
+		case NMR_ERROR_MISSINGVOLUMEDATAFIELDID: return "Missing VolumeData VolumetricStackID";
+		case NMR_ERROR_INVALIDVOLUMEDATASOLIDTHRESHOLD: return "Invalid VolumeData Solid Threshold";
+		case NMR_ERROR_DUPLICATEVOLUMEDATAPROPERTY: return "Duplicate VolumeData Property";
+		case NMR_ERROR_MISSINGVOLUMEDATAPROPERTYNAME: return "Missing VolumeData Property";
+		case NMR_ERROR_MISSINGVOLUMETRICSRCALPHA: return "Missing Volumetric Source Alpha";
+		case NMR_ERROR_MISSINGVOLUMETRICDSTALPHA: return "Missing Volumetric Destination Alpha";
+		case NMR_ERROR_MISSING_ATTRIBUTE_SCALARFIELDCOMPOSED: return "Missing attribute in a ScalarFieldComposed element";
+		case NMR_ERROR_DUPLICATE_ATTRIBUTE_SCALARFIELDCOMPOSED: return "Duplicate attribute in a ScalarFieldComposed element";
+		case NMR_ERROR_MISSING_ATTRIBUTE_VECTOR3DFIELDCOMPOSED: return "Missing attribute in a Vector3DFieldComposed element";
+		case NMR_ERROR_DUPLICATE_ATTRIBUTE_VECTOR3DFIELDCOMPOSED: return "Duplicate attribute in a Vector3DFieldComposed element";
+		case NMR_ERROR_UNKNOWN_NODETYPE_IMPLICITMODEL: return "Unknown node type in implicit model";
+		case NMR_ERROR_IMPLICIT_FUNCTION_INVALID_SOURCE_NODE : return "Invalid source node in implicit function";
+		case NMR_ERROR_IMPLICIT_FUNCTION_INVALID_TARGET_NODE : return "Invalid target node in implicit function";
+		case NMR_ERROR_IMPLICIT_FUNCTION_INVALID_SOURCE_PORT : return "Invalid source port in implicit function";
+		case NMR_ERROR_IMPLICIT_FUNCTION_INVALID_TARGET_PORT : return "Invalid target port in implicit function";
+		case NMR_ERROR_IMPLICIT_FUNCTION_INVALID_PORT_TYPE : return "Invalid port type in implicit function";
+		case NMR_ERROR_IMPLICIT_PORT_DOES_NOT_EXIST : return "The port does not exist";
+		case NMR_ERROR_DUPLICATE_VOLUMEDATA_MESHBBOXONLY : return "Duplicate VolumeData MeshBBoxOnly";
+		case NMR_ERROR_DUPLICATE_VOLUMEDATA_MINFEATURESIZE : return "Duplicate VolumeData MinFeatureSize";
+		case NMR_ERROR_IMPLICIT_FUNCTION_CYCLIC_GRAPH : return "Cyclic graph in implicit function";
+		case NMR_ERROR_DUPLICATE_VOLUMEDATA_FALLBACKVALUE : return "Duplicate VolumeData FallbackValue";
+
+		case NMR_ERROR_DUPLICATE_BOUNDARY_SHAPE_FUNCTION_ID: return "Duplicate attribute functionid in levelset element";
+		case NMR_ERROR_DUPLICATE_BOUNDARY_SHAPE_CHANNEL: return "Duplicate attribute channel in levelset element";
+		case NMR_ERROR_DUPLICATE_BOUNDARY_SHAOE_FALLBACKVALUE: return "Duplicate attribute fallbackvalue in levelset element";
+		case NMR_ERROR_DUPLICATE_BOUNDARY_SHAPE_TRANSFORM: return "Duplicate attribute transform in levelset element";
+		case NMR_ERROR_DUPLICATE_BOUNDARY_SHAPE_MIN_FEATURE_SIZE: return "Duplicate attribute minfeaturesize in levelset element";
+		case NMR_ERROR_DUPLICATE_BOUNDARY_SHAPE_FALLBACK_VALUE: return "Duplicate attribute fallbackvalue in levelset element";
+		case NMR_ERROR_DUPLICATE_BOUNDARY_SHAPE_VOLUME_ID: return "Duplicate attribute volumeid in levelset element";
 
 		// XML Parser Error Constants(0x9XXX)
 		case NMR_ERROR_XMLPARSER_INVALIDATTRIBVALUE: return "Invalid XML attribute value";
@@ -386,6 +542,7 @@ namespace NMR {
 		case NMR_ERROR_CONTENTTYPE_EMPTY_PARTNAME: return "An override content type does not have a partname.";
 		case NMR_ERROR_XMLPARSER_INVALID_ESCAPESTRING: return "XML contains an invalid escape character.";
 		case NMR_ERROR_DUPLICATE_BOX_ATTRIBUTE: return "A box attribute is duplicated.";
+		case NMR_ERROR_DUPLICATE_MATINDICES_ATTRIBUTE: return "A matindices attribute is duplicated.";
 
 		// Library errors (0xAXXX)
 		case NMR_ERROR_COULDNOTGETINTERFACEVERSION: return "Could not get interface version";
@@ -394,10 +551,30 @@ namespace NMR {
 		case NMR_ERROR_INVALIDNAMELENGTH: return "Invalid name length";
 		case NMR_ERROR_COULDNOTCREATEMODEL: return "Could not create model";
 		case NMR_ERROR_INVALIDTEXTURETYPE: return "Invalid Texture type";
+		case NMR_ERROR_KEKDESCRIPTORNOTFOUND: return "Required key encryption client was not registered for a consumer";
+		case NMR_ERROR_DEKDESCRIPTORNOTFOUND: return "Required data encryption client was not registered";
+		case NMR_ERROR_RNGCALLBACKNOTCRYPTOSTRONG: return "Using cryptographically weak random number generator";
 
 		default:
 			return "unknown error";
 		}
+	}
+
+	CNMRException::CNMRException(_In_ nfError errorcode) : std::exception(), m_errorcode(errorcode)
+	{
+		m_message = errorCodeToMessage(errorcode);
+	}
+
+	CNMRException::CNMRException(nfError errorcode,
+									const std::string& message): m_errorcode(errorcode), m_message(message)
+	{
+		m_message = errorCodeToMessage(errorcode) + ": " + message;
+	}
+
+	const char* CNMRException::what() const throw()
+	{ 
+		return m_message.c_str();
+		
 	}
 
 	nfError CNMRException::getErrorCode() const

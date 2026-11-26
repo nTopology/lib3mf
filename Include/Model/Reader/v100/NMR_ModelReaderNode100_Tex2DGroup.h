@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation (Original Author)
-Copyright (C) 2015 netfabb GmbH
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -35,10 +34,10 @@ NMR_ModelReaderNode100_Tex2DGroup.h defines the Model Reader Tex2DGroup Class.
 #define __NMR_MODELREADERNODE100_TEX2DGROUP
 
 #include "Model/Reader/NMR_ModelReaderNode.h"
-#include "Model/Reader/NMR_ModelReader_TexCoordMapping.h"
 #include "Model/Classes/NMR_ModelComponent.h"
 #include "Model/Classes/NMR_ModelComponentsObject.h"
 #include "Model/Classes/NMR_ModelObject.h"
+#include "Model/Classes/NMR_ModelTexture2DGroup.h"
 
 namespace NMR {
 
@@ -48,14 +47,13 @@ namespace NMR {
 		ModelResourceID m_nID;
 		ModelResourceID m_nTextureID;
 
-		ModelResourceIndex m_nTexCoordIndex;
-		PModelReader_TexCoordMapping m_pTexCoordMapping;
+		PModelTexture2DGroupResource m_pTexture2DGroup;
 	protected:
-		virtual void OnAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue);
-		virtual void OnNSChildElement(_In_z_ const nfWChar * pChildName, _In_z_ const nfWChar * pNameSpace, _In_ CXmlReader * pXMLReader);
+		virtual void OnAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue);
+		virtual void OnNSChildElement(_In_z_ const nfChar * pChildName, _In_z_ const nfChar * pNameSpace, _In_ CXmlReader * pXMLReader);
 	public:
 		CModelReaderNode100_Tex2DGroup() = delete;
-		CModelReaderNode100_Tex2DGroup(_In_ CModel * pModel, _In_ PModelReaderWarnings pWarnings, _In_ PModelReader_TexCoordMapping pTexCoordMapping);
+		CModelReaderNode100_Tex2DGroup(_In_ CModel * pModel, _In_ PModelWarnings pWarnings);
 
 		virtual void parseXML(_In_ CXmlReader * pXMLReader);
 	};

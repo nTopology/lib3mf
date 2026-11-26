@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -27,8 +27,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Abstract:
 
 NMR_ImportStream_Callback.cpp implements the CExportStream_Callback Class.
-This is an abstract base stream class for importing with a callback to 
-custom data reader.
+This is a stream class for importing with a callback to custom data reader.
 
 --*/
 
@@ -127,7 +126,7 @@ namespace NMR {
 		return m_nPosition;
 	}
 
-	nfUint64 CImportStream_Callback::readBuffer(_In_ nfByte * pBuffer, _In_ nfUint64 cbTotalBytesToRead, nfBool bNeedsToReadAll)
+	nfUint64 CImportStream_Callback::readIntoBuffer(_In_ nfByte * pBuffer, _In_ nfUint64 cbTotalBytesToRead, nfBool bNeedsToReadAll)
 	{
 		if (m_pReadCallback == nullptr)
 			throw CNMRException(NMR_ERROR_COULDNOTREADFROMCALLBACKSTREAM);
@@ -157,7 +156,7 @@ namespace NMR {
 
 
 	nfUint64 CImportStream_Callback::retrieveSize() {
-		throw CNMRException(NMR_ERROR_NOTIMPLEMENTED);
+		return m_nSize;
 	}
 
 	void CImportStream_Callback::writeToFile(_In_ const nfWChar * pwszFileName) {

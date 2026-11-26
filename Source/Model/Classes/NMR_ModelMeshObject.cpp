@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -37,6 +36,8 @@ mesh object.
 #include "Model/Classes/NMR_ModelMeshObject.h" 
 #include "Common/Math/NMR_PairMatchingTree.h" 
 
+#define TRIANGLESET_MAXCOUNT (1024 * 1024 * 1024)
+
 namespace NMR {
 
 	CModelMeshObject::CModelMeshObject(_In_ const ModelResourceID sID, _In_ CModel * pModel)
@@ -44,8 +45,6 @@ namespace NMR {
 	{
 		m_pMesh = std::make_shared<CMesh>();
 		m_pBeamLatticeAttributes = std::make_shared<CModelMeshBeamLatticeAttributes>();
-		m_pSliceStackId = 0;
-		m_eSlicesMeshResolution = MODELSLICESMESHRESOLUTION_FULL;
 	}
 
 	CModelMeshObject::CModelMeshObject(_In_ const ModelResourceID sID, _In_ CModel * pModel, _In_ PMesh pMesh)
@@ -55,8 +54,6 @@ namespace NMR {
 		if (m_pMesh.get() == nullptr)
 			m_pMesh = std::make_shared<CMesh>();
 		m_pBeamLatticeAttributes = std::make_shared<CModelMeshBeamLatticeAttributes>();
-		m_pSliceStackId = 0;
-		m_eSlicesMeshResolution = MODELSLICESMESHRESOLUTION_FULL;
 	}
 
 	CModelMeshObject::~CModelMeshObject()
@@ -99,20 +96,31 @@ namespace NMR {
 		case MODELOBJECTTYPE_MODEL: return isManifoldAndOriented();
 		case MODELOBJECTTYPE_SUPPORT: return true;
 		case MODELOBJECTTYPE_SOLIDSUPPORT: return isManifoldAndOriented();
+		case MODELOBJECTTYPE_SURFACE: return true;
 		default:
 			return false;
 
 		}
 	}
 
+	nfBool CModelMeshObject::hasSlices(nfBool bRecursive)
+	{
+		return (this->getSliceStack().get() != nullptr);
+	}
+
 	nfBool CModelMeshObject::isValidForSlices(const NMATRIX3& totalParentMatrix)
 	{
-		if (this->getSliceStackId() == 0) {
+		if (!this->getSliceStack().get()) {
 			return true;
 		}
 		else {
 			return fnMATRIX3_isplanar(totalParentMatrix);
 		}
+	}
+
+	nfBool CModelMeshObject::isValidForBeamLattices()
+	{
+		return ( (getObjectType() == eModelObjectType::MODELOBJECTTYPE_MODEL) || (getObjectType() == eModelObjectType::MODELOBJECTTYPE_SOLIDSUPPORT) );
 	}
 
 	nfBool CModelMeshObject::isManifoldAndOriented()
@@ -202,9 +210,9 @@ namespace NMR {
 	}
 
 
-	_Ret_notnull_ CModelMeshBeamLatticeAttributes * CModelMeshObject::getBeamLatticeAttributes()
+	_Ret_notnull_ PModelMeshBeamLatticeAttributes CModelMeshObject::getBeamLatticeAttributes()
 	{
-		return m_pBeamLatticeAttributes.get();
+		return m_pBeamLatticeAttributes;
 	}
 
 	void CModelMeshObject::setBeamLatticeAttributes(_In_ PModelMeshBeamLatticeAttributes pBeamLatticeAttributes)
@@ -215,21 +223,110 @@ namespace NMR {
 		m_pBeamLatticeAttributes = pBeamLatticeAttributes;
 	}
 
-	void CModelMeshObject::setSliceStackId(PPackageResourceID nSliceStackId) {
-		m_pSliceStackId = nSliceStackId;
+	PModelVolumeData CModelMeshObject::getVolumeData()
+	{
+		return m_pVolumeData;
 	}
 
-	PPackageResourceID CModelMeshObject::getSliceStackId() {
-		return m_pSliceStackId;
+	void CModelMeshObject::setVolumeData(_In_ PModelVolumeData pVolumeData)
+	{
+		if (!pVolumeData)
+			throw CNMRException(NMR_ERROR_INVALIDPARAM);
+
+		m_pVolumeData = pVolumeData;
 	}
 
-	void CModelMeshObject::setSlicesMeshResolution(eModelSlicesMeshResolution eMeshResolution) {
-		m_eSlicesMeshResolution = eMeshResolution;
+	void CModelMeshObject::extendOutbox(_Out_ NOUTBOX3& vOutBox, _In_ const NMATRIX3 mAccumulatedMatrix)
+	{
+		m_pMesh->extendOutbox(vOutBox, mAccumulatedMatrix);
 	}
 
-	eModelSlicesMeshResolution CModelMeshObject::slicesMeshResolution() const {
-		return m_eSlicesMeshResolution;
+	ResourceDependencies CModelMeshObject::getDependencies()
+	{
+		ResourceDependencies dependencies;
+		if(m_pVolumeData)
+		{
+			dependencies.push_back(
+				m_pVolumeData->getPackageResourceID());
+		}
+
+		return dependencies;
 	}
+
+	void CModelMeshObject::deleteTriangleSet(_In_ CModelTriangleSet* pTriangleSet)
+	{
+		if (pTriangleSet != nullptr) {
+			auto sIdentifier = pTriangleSet->getIdentifier();
+			m_TriangleSets.erase(std::remove_if(
+				m_TriangleSets.begin(),
+				m_TriangleSets.end(),
+				[sIdentifier](PModelTriangleSet const& pSet) { return (pSet->getIdentifier() == sIdentifier); }
+			));
+			
+			m_TriangleSetMap.erase(sIdentifier);
+	
+		}
+	}
+
+	PModelTriangleSet CModelMeshObject::findTriangleSet(const std::string& sIdentifier)
+	{
+		auto iIterator = m_TriangleSetMap.find(sIdentifier);
+		if (iIterator == m_TriangleSetMap.end())
+			return nullptr;
+
+		return iIterator->second;
+
+	}
+
+	PModelTriangleSet CModelMeshObject::addTriangleSet(const std::string& sIdentifier, const std::string& sName)
+	{
+		auto iIterator = m_TriangleSetMap.find(sIdentifier);
+		if (iIterator != m_TriangleSetMap.end())
+			throw CNMRException(NMR_ERROR_DUPLICATETRIANGLESET);
+
+		if (m_TriangleSets.size() >= TRIANGLESET_MAXCOUNT)
+			throw CNMRException(NMR_ERROR_TOOMANYTRIANGLESETS);
+
+		auto pTriangleSet = std::make_shared<CModelTriangleSet>(sName, sIdentifier);
+		m_TriangleSets.push_back(pTriangleSet);
+		m_TriangleSetMap.insert(std::make_pair (sIdentifier, pTriangleSet));
+
+		return pTriangleSet;
+
+	}
+
+	PModelTriangleSet CModelMeshObject::addTriangleSet(PModelTriangleSet pModelTriangleSet)
+	{
+		if (pModelTriangleSet.get() == nullptr)
+			throw CNMRException(NMR_ERROR_INVALIDPARAM);
+
+		auto iIterator = m_TriangleSetMap.find(pModelTriangleSet->getIdentifier());
+		if (iIterator != m_TriangleSetMap.end())
+			throw CNMRException(NMR_ERROR_DUPLICATETRIANGLESET);
+
+		if (m_TriangleSets.size() >= TRIANGLESET_MAXCOUNT)
+			throw CNMRException(NMR_ERROR_TOOMANYTRIANGLESETS);
+
+		m_TriangleSets.push_back(pModelTriangleSet);
+		m_TriangleSetMap.insert(std::make_pair(pModelTriangleSet->getIdentifier(), pModelTriangleSet));
+
+		return pModelTriangleSet;
+	}
+
+	uint32_t CModelMeshObject::getTriangleSetCount()
+	{
+		return (uint32_t)m_TriangleSets.size();
+	}
+
+	PModelTriangleSet CModelMeshObject::getTriangleSet(const uint32_t nIndex)
+	{
+		if (nIndex >= m_TriangleSets.size())
+			throw CNMRException(NMR_ERROR_INVALIDINDEX);
+
+		return m_TriangleSets[nIndex];
+
+	}
+
 }
 
 

@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2017 Autodesk Inc.
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -41,7 +41,7 @@ NMR_ModelReaderNode_BeamLattice1702_Ref.cpp covers the official 3MF beamlattice 
 
 namespace NMR {
 
-	CModelReaderNode_BeamLattice1702_Ref::CModelReaderNode_BeamLattice1702_Ref(_In_ PModelReaderWarnings pWarnings)
+	CModelReaderNode_BeamLattice1702_Ref::CModelReaderNode_BeamLattice1702_Ref(_In_ PModelWarnings pWarnings)
 		: CModelReaderNode(pWarnings), m_nIndex(0)
 	{
 	}
@@ -64,13 +64,13 @@ namespace NMR {
 		nIndex = m_nIndex;
 	}
 
-	void CModelReaderNode_BeamLattice1702_Ref::OnAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue)
+	void CModelReaderNode_BeamLattice1702_Ref::OnAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue)
 	{
 		__NMRASSERT(pAttributeName);
 		__NMRASSERT(pAttributeValue);
 
-		if (wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_BEAMLATTICE_INDEX) == 0) {
-			nfInt32 nValue = fnWStringToInt32(pAttributeValue);
+		if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_BEAMLATTICE_INDEX) == 0) {
+			nfInt32 nValue = fnStringToInt32(pAttributeValue);
 			if ((nValue >= 0) && (nValue < XML_3MF_MAXBEAMCOUNT))
 				m_nIndex = nValue;
 		}

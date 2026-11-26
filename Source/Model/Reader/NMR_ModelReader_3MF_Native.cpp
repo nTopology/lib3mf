@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -33,12 +33,16 @@ It uses libzip and irrxml to parse the OPC package.
 --*/
 
 #include "Model/Reader/NMR_ModelReader_3MF_Native.h" 
-#include "Model/Reader/NMR_ModelReaderNode_Model.h" 
+#include "Model/Reader/NMR_ModelReaderNode_ModelBase.h" 
 #include "Model/Classes/NMR_ModelConstants.h" 
 #include "Model/Classes/NMR_ModelAttachment.h" 
+#include "Model/Classes/NMR_KeyStore.h" 
+#include "Common/NMR_SecureContext.h" 
 #include "Common/NMR_Exception.h" 
 #include "Common/NMR_Exception_Windows.h"
 #include "Common/NMR_StringUtils.h"
+#include "Common/Platform/NMR_Platform.h"
+#include "Model/Reader/NMR_ModelReader_InstructionElement.h"
 
 namespace NMR {
 
@@ -48,33 +52,35 @@ namespace NMR {
 		// empty on purpose
 	}
 
+
+
 	PImportStream CModelReader_3MF_Native::extract3MFOPCPackage(_In_ PImportStream pPackageStream)
 	{
-		m_pPackageReader = std::make_shared<COpcPackageReader>(pPackageStream, m_pWarnings);
+		m_pPackageReader = std::make_shared<CKeyStoreOpcPackageReader>(pPackageStream, *this);
 
 		COpcPackageRelationship * pModelRelation = m_pPackageReader->findRootRelation(PACKAGE_START_PART_RELATIONSHIP_TYPE, true);
 		if (pModelRelation == nullptr)
 			throw CNMRException(NMR_ERROR_OPCRELATIONSHIPSETREADFAILED);
 
-		std::wstring sTargetPartURI = pModelRelation->getTargetPartURI();
-		POpcPackagePart pModelPart = m_pPackageReader->createPart (sTargetPartURI);
+		std::string sTargetPartURI = pModelRelation->getTargetPartURI();
+		POpcPackagePart pModelPart = m_pPackageReader->createPart(sTargetPartURI);
 		if (pModelPart == nullptr)
 			throw CNMRException(NMR_ERROR_OPCCOULDNOTGETMODELSTREAM);
 
-		m_pModel->setRootPath(sTargetPartURI.c_str());
+		model()->setRootPath(sTargetPartURI.c_str());
 
 		// calculate current level at this stage
-		std::wstring sTargetPartURIDir = fnExtractFileDir(sTargetPartURI);
+		std::string sTargetPartURIDir = fnExtractFileDir(sTargetPartURI);
 		
 		extractTexturesFromRelationships(sTargetPartURIDir, pModelPart.get());
 		extractCustomDataFromRelationships(sTargetPartURIDir, pModelPart.get());
 		extractModelDataFromRelationships(sTargetPartURIDir, pModelPart.get());
 		
-		nfUint32 prodAttCount = m_pModel->getProductionAttachmentCount();
+		nfUint32 prodAttCount = model()->getProductionAttachmentCount();
 		for (nfUint32 i = 0; i < prodAttCount; i++)
 		{
-			PModelAttachment pProdAttachment = m_pModel->getProductionModelAttachment(i);
-			std::wstring pathURI = pProdAttachment->getPathURI();
+			PModelAttachment pProdAttachment = model()->getProductionModelAttachment(i);
+			std::string pathURI = pProdAttachment->getPathURI();
 			POpcPackagePart pSubModelPart = m_pPackageReader->createPart(pathURI);
 			extractModelDataFromRelationships(sTargetPartURIDir, pSubModelPart.get());
 			extractTexturesFromRelationships(sTargetPartURIDir, pSubModelPart.get());
@@ -82,12 +88,14 @@ namespace NMR {
 
 		COpcPackageRelationship * pThumbnailRelation = m_pPackageReader->findRootRelation(PACKAGE_THUMBNAIL_RELATIONSHIP_TYPE, true);
 		if (pThumbnailRelation != nullptr) {
-			std::wstring sTargetPartURI = pThumbnailRelation->getTargetPartURI();
+			std::string sTargetPartURI = pThumbnailRelation->getTargetPartURI();
 			POpcPackagePart pThumbnailPart = m_pPackageReader->createPart(sTargetPartURI);
 			if (pThumbnailPart == nullptr)
 				throw CNMRException(NMR_ERROR_OPCCOULDNOTGETTHUMBNAILSTREAM);
 			PImportStream pThumbnailStream = pThumbnailPart->getImportStream()->copyToMemory();
-			m_pModel->addPackageThumbnail()->setStream(pThumbnailStream);
+			model()->addPackageThumbnail()->setStream(pThumbnailStream);
+			monitor()->IncrementProgress((double)pThumbnailStream->retrieveSize());
+			monitor()->ReportProgressAndQueryCancelled(true);
 		}
 		
 		return pModelPart->getImportStream();
@@ -95,103 +103,140 @@ namespace NMR {
 	
 	void CModelReader_3MF_Native::release3MFOPCPackage()
 	{
+		//foreach part, finalize encryption contexts
+		m_pPackageReader->close();
 		m_pPackageReader = nullptr;
 	}
 
-	void CModelReader_3MF_Native::extractTexturesFromRelationships(_In_ std::wstring& sTargetPartURIDir, _In_ COpcPackagePart * pModelPart)
+	void CModelReader_3MF_Native::extractTexturesFromRelationships(_In_ std::string& sTargetPartURIDir, _In_ COpcPackagePart * pModelPart)
 	{
 		if (pModelPart == nullptr)
 			throw CNMRException(NMR_ERROR_INVALIDPARAM);
 
-		std::list<POpcPackageRelationship> RelationShips = pModelPart->getRelationShips();
-		std::list<POpcPackageRelationship>::iterator iIterator;
+		monitor()->SetProgressIdentifier(PROGRESS_READTEXTURETACHMENTS);
+
+		std::multimap<std::string, POpcPackageRelationship>& RelationShips = pModelPart->getRelationShips();
 		
-		for (iIterator = RelationShips.begin(); iIterator != RelationShips.end(); iIterator++) {
-			std::wstring sType = (*iIterator)->getType();
-			if ( (wcscmp(sType.c_str(), PACKAGE_TEXTURE_RELATIONSHIP_TYPE) == 0) || 
-				 (wcscmp(sType.c_str(), PACKAGE_THUMBNAIL_RELATIONSHIP_TYPE) == 0) ) // TODO: remove this
-				 // this is to allow object thumbnails to come from the OPC Thumbnail relationship type
+		for (auto iIterator = RelationShips.begin(); iIterator != RelationShips.end(); iIterator++) {
+			auto theRelationShip = iIterator->second;
+			std::string sType = theRelationShip->getType();
+
+			if ( (sType == PACKAGE_TEXTURE_RELATIONSHIP_TYPE) || 
+				 (sType == PACKAGE_THUMBNAIL_RELATIONSHIP_TYPE) )
+				 // this is to allow object thumbnails to come from both
+				 // the Texture or the OPC Thumbnail relationship type
+				 // to comply with older versions of the 3mf specification
 			{
-				std::wstring sURI = (*iIterator)->getTargetPartURI();
+				std::string sURI = theRelationShip->getTargetPartURI();
 				// TODO: this logic might not be correct yet
-				if (!fnStartsWithPathDelimiter(sURI)) 
+				if (!fnStartsWithPathDelimiter(sURI))
 					sURI = sTargetPartURIDir + sURI;
 
-				PModelAttachment pModelAttachment = m_pModel->findModelAttachment(sURI);
+				PModelAttachment pModelAttachment = model()->findModelAttachment(sURI);
 				if (!pModelAttachment) {
 					POpcPackagePart pTexturePart = m_pPackageReader->createPart(sURI);
 					PImportStream pTextureAttachmentStream = pTexturePart->getImportStream();
 					PImportStream pMemoryStream = pTextureAttachmentStream->copyToMemory();
 
 					if (pMemoryStream->retrieveSize() == 0)
-						m_pWarnings->addException(CNMRException(NMR_ERROR_IMPORTSTREAMISEMPTY), mrwMissingMandatoryValue);
+						warnings()->addException(CNMRException(NMR_ERROR_IMPORTSTREAMISEMPTY), mrwMissingMandatoryValue);
 
 					// Add Texture Attachment to Model
 					addTextureAttachment(sURI, pMemoryStream);
+
+					monitor()->IncrementProgress((double)pMemoryStream->retrieveSize());
+					monitor()->ReportProgressAndQueryCancelled(true);
 				}
 			}
 		}
 	}
 
 
-	void CModelReader_3MF_Native::extractCustomDataFromRelationships(_In_ std::wstring& sTargetPartURIDir, _In_ COpcPackagePart * pModelPart)
+	void CModelReader_3MF_Native::extractCustomDataFromRelationships(_In_ std::string& sTargetPartURIDir, _In_ COpcPackagePart * pModelPart)
 	{
 		if (pModelPart == nullptr)
 			throw CNMRException(NMR_ERROR_INVALIDPARAM);
 
-		std::list<POpcPackageRelationship> RelationShips = pModelPart->getRelationShips();
-		std::list<POpcPackageRelationship>::iterator iIterator;
+		monitor()->SetProgressIdentifier(PROGRESS_READCUSTOMATTACHMENTS);
 
-		for (iIterator = RelationShips.begin(); iIterator != RelationShips.end(); iIterator++) {
-			std::wstring sRelationShipType = (*iIterator)->getType();
+		std::multimap<std::string, POpcPackageRelationship>& RelationShips = pModelPart->getRelationShips();
+
+		for (auto iIterator = RelationShips.begin(); iIterator != RelationShips.end(); iIterator++) {
+			auto theRelationShip = iIterator->second;
+
+			std::string sRelationShipType = theRelationShip->getType();
+			std::string sURI = theRelationShip->getTargetPartURI();
+
+			if (!fnStartsWithPathDelimiter(sURI))
+				sURI = sTargetPartURIDir + sURI;
+
 			auto iRelationIterator = m_RelationsToRead.find(sRelationShipType);
 			if (iRelationIterator != m_RelationsToRead.end()) {
-				std::wstring sURI = (*iIterator)->getTargetPartURI();
-				if (!fnStartsWithPathDelimiter(sURI))
-					sURI = sTargetPartURIDir + sURI;
 				POpcPackagePart pPart = m_pPackageReader->createPart(sURI);
 				PImportStream pAttachmentStream = pPart->getImportStream();
-				PImportStream pMemoryStream = pAttachmentStream->copyToMemory();
-				
-				if (pMemoryStream->retrieveSize() == 0)
-					m_pWarnings->addException(CNMRException(NMR_ERROR_IMPORTSTREAMISEMPTY), mrwMissingMandatoryValue);
+				try {
+					PImportStream pMemoryStream = pAttachmentStream->copyToMemory();
 
-				// Add Attachment Stream to Model
-				m_pModel->addAttachment(sURI, sRelationShipType, pMemoryStream);
+					if (pMemoryStream->retrieveSize() == 0)
+						warnings()->addException(CNMRException(NMR_ERROR_IMPORTSTREAMISEMPTY), mrwMissingMandatoryValue);
+
+					// Add Attachment Stream to Model
+					model()->addAttachment(sURI, sRelationShipType, pMemoryStream);
+
+					monitor()->IncrementProgress((double)pMemoryStream->retrieveSize());
+					monitor()->ReportProgressAndQueryCancelled(true);
+				}
+				catch (CNMRException &e) {
+					if (e.getErrorCode() == NMR_ERROR_INVALIDBUFFERSIZE)
+						warnings()->addException(CNMRException(NMR_ERROR_ATTACHMENTTOOLARGE), mrwMissingMandatoryValue);
+					else
+						throw;
+				}
+			}
+			else {
+				if (   (sRelationShipType != PACKAGE_START_PART_RELATIONSHIP_TYPE)
+					&& (sRelationShipType != PACKAGE_TEXTURE_RELATIONSHIP_TYPE)
+					&& (sRelationShipType != PACKAGE_THUMBNAIL_RELATIONSHIP_TYPE) )
+				{
+					monitor()->DecreaseMaxProgress((double)m_pPackageReader->getPartSize(sURI));
+					monitor()->ReportProgressAndQueryCancelled(true);
+				}
 			}
 		}
 	}
 	
-	void CModelReader_3MF_Native::extractModelDataFromRelationships(_In_ std::wstring& sTargetPartURIDir, _In_ COpcPackagePart * pModelPart)
+	void CModelReader_3MF_Native::extractModelDataFromRelationships(_In_ std::string& sTargetPartURIDir, _In_ COpcPackagePart * pModelPart)
 	{
 		if (pModelPart == nullptr)
 			throw CNMRException(NMR_ERROR_INVALIDPARAM);
 
-		std::list<POpcPackageRelationship> RelationShips = pModelPart->getRelationShips();
-		std::list<POpcPackageRelationship>::iterator iIterator;
+		std::multimap<std::string, POpcPackageRelationship>& RelationShips = pModelPart->getRelationShips();
 
-		for (iIterator = RelationShips.begin(); iIterator != RelationShips.end(); iIterator++) {
-			std::wstring sRelationShipType = (*iIterator)->getType();
-			if (wcscmp(sRelationShipType.c_str(), PACKAGE_START_PART_RELATIONSHIP_TYPE) == 0) {
-				std::wstring sURI = (*iIterator)->getTargetPartURI();
+		for (auto iIterator = RelationShips.begin(); iIterator != RelationShips.end(); iIterator++) {
+			auto theRelationShip = iIterator->second;
+
+			std::string sRelationShipType = theRelationShip->getType();
+			
+			if (sRelationShipType == PACKAGE_START_PART_RELATIONSHIP_TYPE) {
+				std::string sURI = theRelationShip->getTargetPartURI();
 				if (!fnStartsWithPathDelimiter(sURI))
 					sURI = sTargetPartURIDir + sURI;
+
 				POpcPackagePart pPart = m_pPackageReader->createPart(sURI);
-				
-				
+
 				// first, check if this attachment already is in model
-				PModelAttachment pModelAttachment = m_pModel->findProductionModelAttachment(sURI);
+				PModelAttachment pModelAttachment = model()->findProductionModelAttachment(sURI);
 				if (pModelAttachment) {
 					// this attachment is already read
-					m_pModel->addProductionAttachment(sURI, sRelationShipType, pModelAttachment->getStream(), false);
+					model()->addProductionAttachment(sURI, sRelationShipType, pModelAttachment->getStream(), false);
 				}
 				else {
 					// this is the first time this attachment is read
 					PImportStream pAttachmentStream = pPart->getImportStream();
 					PImportStream pMemoryStream = pAttachmentStream->copyToMemory();
 					if (pMemoryStream->retrieveSize() == 0)
-						m_pWarnings->addException(CNMRException(NMR_ERROR_IMPORTSTREAMISEMPTY), mrwMissingMandatoryValue);
-					m_pModel->addProductionAttachment(sURI, sRelationShipType, pMemoryStream, true);
+						warnings()->addException(CNMRException(NMR_ERROR_IMPORTSTREAMISEMPTY), mrwMissingMandatoryValue);
+					model()->addProductionAttachment(sURI, sRelationShipType, pMemoryStream, true);
 				}
 			}
 		}

@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation (Original Author)
-Copyright (C) 2015 netfabb GmbH
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -51,9 +50,9 @@ namespace NMR {
 		nfBool m_bHasZ;
 	public:
 		CModelReaderNode100_Vertex() = delete;
-		CModelReaderNode100_Vertex(_In_ PModelReaderWarnings pWarnings);
+		CModelReaderNode100_Vertex(_In_ PModelWarnings pWarnings);
 
-		virtual void OnAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue);
+		virtual void OnAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue);
 
 		virtual void parseXML(_In_ CXmlReader * pXMLReader);
 

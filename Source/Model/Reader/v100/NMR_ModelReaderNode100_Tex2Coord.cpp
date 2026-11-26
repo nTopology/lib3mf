@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation (Original Author)
-Copyright (C) 2015 netfabb GmbH
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -27,7 +26,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Abstract:
 
-NMR_ModelReaderNode100_Color.cpp implements the Model Reader Color Node Class.
+NMR_ModelReaderNode100_Tex2Coord.cpp implements the Model Reader Tex2Coord Node Class.
 
 --*/
 
@@ -42,15 +41,15 @@ NMR_ModelReaderNode100_Color.cpp implements the Model Reader Color Node Class.
 
 namespace NMR {
 
-	CModelReaderNode100_Tex2Coord::CModelReaderNode100_Tex2Coord(_In_ CModel * pModel, _In_ PModelReaderWarnings pWarnings)
+	CModelReaderNode100_Tex2Coord::CModelReaderNode100_Tex2Coord(_In_ CModel * pModel, _In_ PModelWarnings pWarnings)
 		: CModelReaderNode(pWarnings)
 	{
 
 		m_pModel = pModel;
-	    m_bHasU = false;
-		m_fU = 0.0f;
+		m_bHasU = false;
 		m_bHasV = false;
-		m_fV = 0.0f;
+		m_sUVCoordinate.m_dU = 0.0;
+		m_sUVCoordinate.m_dV = 0.0;
 	}
 
 	void CModelReaderNode100_Tex2Coord::parseXML(_In_ CXmlReader * pXMLReader)
@@ -66,34 +65,29 @@ namespace NMR {
 
 	}
 
-	void CModelReaderNode100_Tex2Coord::OnAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue)
+	void CModelReaderNode100_Tex2Coord::OnAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue)
 	{
 		__NMRASSERT(pAttributeName);
 		__NMRASSERT(pAttributeValue);
 
 		
-		if (wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_TEXTUREVERTEX_U) == 0) {
+		if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_TEXTUREVERTEX_U) == 0) {
 			try {
-				m_fU = fnWStringToFloat(pAttributeValue);
+				m_sUVCoordinate.m_dU = fnStringToDouble(pAttributeValue);
 			}
 			catch (...)
 			{
 			}
 		}
 
-		if (wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_TEXTUREVERTEX_V) == 0) {
+		if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_TEXTUREVERTEX_V) == 0) {
 			try {
-				m_fV = fnWStringToFloat(pAttributeValue);
+				m_sUVCoordinate.m_dV = fnStringToDouble(pAttributeValue);
 			}
 			catch (...)
 			{
 			}
 		}
-	}
-
-	nfFloat CModelReaderNode100_Tex2Coord::getU()
-	{
-		return m_fU;
 	}
 
 	nfBool CModelReaderNode100_Tex2Coord::hasU()
@@ -101,14 +95,13 @@ namespace NMR {
 		return m_bHasU;
 	}
 
-	nfFloat CModelReaderNode100_Tex2Coord::getV()
-	{
-		return m_fV;
-	}
-
 	nfBool CModelReaderNode100_Tex2Coord::hasV()
 	{
 		return m_bHasV;
 	}
 
+	MODELTEXTURE2DCOORDINATE CModelReaderNode100_Tex2Coord::getUV()
+	{
+		return m_sUVCoordinate;
+	}
 }

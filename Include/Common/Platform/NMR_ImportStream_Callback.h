@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -41,13 +41,14 @@ custom data reader.
 
 #include <iostream>
 #include <fstream>
+#include <functional>
 
 #define IMPORTSTREAM_CALLBACK_BUFFERSIZE (1024*1024)
 
 namespace NMR {
 
-	typedef nfUint32(LIB3MF_CDECL *ImportStream_ReadCallbackType)(_Out_ nfByte * pData, _In_ nfUint32 cbBytes, _In_ void * pUserData);
-	typedef nfUint32(LIB3MF_CDECL *ImportStream_SeekCallbackType)(_In_ nfUint64 nPosition, _In_ void * pUserData);
+	typedef std::function<nfUint32(nfByte*, nfUint64, _In_ void *)> ImportStream_ReadCallbackType;
+	typedef std::function<nfUint32(nfUint64, _In_ void *)> ImportStream_SeekCallbackType;
 
 	class CImportStream_Callback : public CImportStream {
 	private:
@@ -64,11 +65,10 @@ namespace NMR {
 		virtual nfBool seekForward(_In_ nfUint64 bytes, _In_ nfBool bHasToSucceed);
 		virtual nfBool seekFromEnd(_In_ nfUint64 bytes, _In_ nfBool bHasToSucceed);
 		virtual nfUint64 getPosition();
-		virtual nfUint64 readBuffer(_In_ nfByte * pBuffer, _In_ nfUint64 cbTotalBytesToRead, nfBool bNeedsToReadAll);
+		virtual nfUint64 readIntoBuffer(_In_ nfByte * pBuffer, _In_ nfUint64 cbTotalBytesToRead, nfBool bNeedsToReadAll);
 		virtual nfUint64 retrieveSize();
 		virtual void writeToFile(_In_ const nfWChar * pwszFileName);
 		virtual PImportStream copyToMemory();
-		
 	};
 
 }

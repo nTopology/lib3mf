@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2017 Autodesk Inc.
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -39,13 +39,13 @@ namespace NMR {
 
 	class CModelReader_InstructionElement : public CModelReaderNode {
 	private:
-		std::wstring m_sEncoding;
-		std::wstring m_sName;
+		std::string m_sEncoding;
+		std::string m_sName;
 	protected:
-		virtual void OnAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue);
+		virtual void OnAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue);
 	public:
 		CModelReader_InstructionElement() = delete;
-		CModelReader_InstructionElement(_In_ PModelReaderWarnings pWarnings);
+		CModelReader_InstructionElement(_In_ PModelWarnings pWarnings);
 
 		virtual void parseName(_In_ CXmlReader * pXMLReader);
 		virtual void parseXML(_In_ CXmlReader * pXMLReader);

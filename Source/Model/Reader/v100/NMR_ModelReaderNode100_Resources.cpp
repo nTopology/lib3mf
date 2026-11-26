@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation (Original Author)
-Copyright (C) 2015 netfabb GmbH
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -38,25 +37,32 @@ XML Model Stream.
 #include "Model/Reader/v100/NMR_ModelReaderNode100_Colors.h"
 #include "Model/Reader/v100/NMR_ModelReaderNode100_Tex2DGroup.h"
 #include "Model/Reader/v100/NMR_ModelReaderNode100_Texture2D.h"
+#include "Model/Reader/v100/NMR_ModelReaderNode100_CompositeMaterials.h"
+#include "Model/Reader/v100/NMR_ModelReaderNode100_MultiProperties.h"
 #include "Model/Reader/Slice1507/NMR_ModelReader_Slice1507_SliceStack.h"
+#include "Model/Reader/Volumetric2201/NMR_ModelReaderNode_Volumetric2201_Image3D.h"
+#include "Model/Reader/Volumetric2201/NMR_ModelReaderNode_Implicit_Function.h"
+#include "Model/Reader/Volumetric2201/NMR_ModelReaderNode_FunctionFromImage3D.h"
+#include "Model/Reader/Volumetric2201/NMR_ModelReaderNode_LevelSet.h"
+#include "Model/Reader/Volumetric2201/NMR_ModelReaderNode_Volumetric2201_VolumeData.h"
 
 #include "Model/Classes/NMR_ModelConstants.h"
+#include "Common/NMR_StringUtils.h"
 #include "Common/NMR_Exception.h"
 #include "Common/NMR_Exception_Windows.h"
-#include "Common/MeshInformation/NMR_MeshInformation_Slices.h"
+#include "Model/Classes/NMR_ModelConstants_Slices.h"
 
 namespace NMR {
 
-	CModelReaderNode100_Resources::CModelReaderNode100_Resources(_In_ CModel * pModel, _In_ PModelReaderWarnings pWarnings, _In_z_ const nfWChar *sPath)
-		: CModelReaderNode(pWarnings)
+	CModelReaderNode100_Resources::CModelReaderNode100_Resources(_In_ CModel * pModel, _In_ PModelWarnings pWarnings, _In_z_ const std::string sPath,
+		_In_ PProgressMonitor pProgressMonitor)
+		: CModelReaderNode(pWarnings, pProgressMonitor)
 	{
 		__NMRASSERT(pModel);
 		__NMRASSERT(sPath);
 		m_pModel = pModel;
 		m_sPath = sPath;
-
-		m_pColorMapping = std::make_shared<CModelReader_ColorMapping>();
-		m_pTexCoordMapping = std::make_shared<CModelReader_TexCoordMapping>();
+		m_nProgressCount = 0;
 	}
 
 	void CModelReaderNode100_Resources::parseXML(_In_ CXmlReader * pXMLReader)
@@ -71,24 +77,28 @@ namespace NMR {
 		parseContent(pXMLReader);
 	}
 
-	void CModelReaderNode100_Resources::OnAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue)
+	void CModelReaderNode100_Resources::OnAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue)
 	{
 		__NMRASSERT(pAttributeName);
 		__NMRASSERT(pAttributeValue);
 	}
 
-	void CModelReaderNode100_Resources::OnNSChildElement(_In_z_ const nfWChar * pChildName, _In_z_ const nfWChar * pNameSpace, _In_ CXmlReader * pXMLReader)
+	void CModelReaderNode100_Resources::OnNSChildElement(_In_z_ const nfChar * pChildName, _In_z_ const nfChar * pNameSpace, _In_ CXmlReader * pXMLReader)
 	{
 		
 		__NMRASSERT(pChildName);
 		__NMRASSERT(pXMLReader);
 
-		if (wcscmp(pNameSpace, XML_3MF_NAMESPACE_CORESPEC100) == 0) {
-			if (wcscmp(pChildName, XML_3MF_ELEMENT_OBJECT) == 0) {
-				PModelReaderNode pXMLNode = std::make_shared<CModelReaderNode100_Object>(m_pModel, m_pWarnings, m_pColorMapping, m_pTexCoordMapping);
+		if (strcmp(pNameSpace, XML_3MF_NAMESPACE_CORESPEC100) == 0) {
+			if (strcmp(pChildName, XML_3MF_ELEMENT_OBJECT) == 0) {
+				m_pProgressMonitor->SetProgressIdentifier(ProgressIdentifier::PROGRESS_READRESOURCES);
+				m_pProgressMonitor->ReportProgressAndQueryCancelled(true);
+
+				PModelReaderNode pXMLNode = std::make_shared<CModelReaderNode100_Object>(m_pModel, m_pWarnings, m_pProgressMonitor);
 				pXMLNode->parseXML(pXMLReader);
+
 			}
-			else if (wcscmp(pChildName, XML_3MF_ELEMENT_BASEMATERIALS) == 0) {
+			else if (strcmp(pChildName, XML_3MF_ELEMENT_BASEMATERIALS) == 0) {
 				PModelReaderNode pXMLNode = std::make_shared<CModelReaderNode100_BaseMaterials>(m_pModel, m_pWarnings);
 				pXMLNode->parseXML(pXMLReader);
 			}
@@ -96,39 +106,76 @@ namespace NMR {
 				m_pWarnings->addException(CNMRException(NMR_ERROR_NAMESPACE_INVALID_ELEMENT), mrwInvalidOptionalValue);
 		}
 
-		if (wcscmp(pNameSpace, XML_3MF_NAMESPACE_MATERIALSPEC) == 0) {
-			if (wcscmp(pChildName, XML_3MF_ELEMENT_COLORGROUP) == 0) {
-				PModelReaderNode pXMLNode = std::make_shared<CModelReaderNode100_Colors>(m_pModel, m_pWarnings, m_pColorMapping);
+		if (strcmp(pNameSpace, XML_3MF_NAMESPACE_MATERIALSPEC) == 0) {
+			if (strcmp(pChildName, XML_3MF_ELEMENT_COLORGROUP) == 0) {
+				PModelReaderNode pXMLNode = std::make_shared<CModelReaderNode100_Colors>(m_pModel, m_pWarnings);
 				pXMLNode->parseXML(pXMLReader);
 			}
-			else if (wcscmp(pChildName, XML_3MF_ELEMENT_TEX2DGROUP) == 0) {
-				PModelReaderNode pXMLNode = std::make_shared<CModelReaderNode100_Tex2DGroup>(m_pModel, m_pWarnings, m_pTexCoordMapping);
+			else if (strcmp(pChildName, XML_3MF_ELEMENT_TEX2DGROUP) == 0) {
+				PModelReaderNode pXMLNode = std::make_shared<CModelReaderNode100_Tex2DGroup>(m_pModel, m_pWarnings);
 				pXMLNode->parseXML(pXMLReader);
 			}
-			else if (wcscmp(pChildName, XML_3MF_ELEMENT_TEXTURE2D) == 0) {
+			else if (strcmp(pChildName, XML_3MF_ELEMENT_TEXTURE2D) == 0) {
 				PModelReaderNode pXMLNode = std::make_shared<CModelReaderNode100_Texture2D>(m_pModel, m_pWarnings);
 				pXMLNode->parseXML(pXMLReader);
 			}
-			else if (wcscmp(pChildName, XML_3MF_ELEMENT_COMPOSITEMATERIALS) == 0) {
-				// Compositematerials are not implemented in lib3mf.
-				// signal this to the user via a warning
-				m_pWarnings->addException(CNMRException(NMR_ERROR_NAMESPACE_INVALID_ELEMENT), mrwInvalidOptionalValue);
+			else if (strcmp(pChildName, XML_3MF_ELEMENT_COMPOSITEMATERIALS) == 0) {
+				PModelReaderNode pXMLNode = std::make_shared<CModelReaderNode100_CompositeMaterials>(m_pModel, m_pWarnings);
+				pXMLNode->parseXML(pXMLReader);
+			}
+			else if (strcmp(pChildName, XML_3MF_ELEMENT_MULTIPROPERTIES) == 0) {
+				PModelReaderNode pXMLNode = std::make_shared<CModelReaderNode100_MultiProperties>(m_pModel, m_pWarnings);
+				pXMLNode->parseXML(pXMLReader);
 			}
 			// there might be other things, that are not yet properly implemented in lib3MF
-			//else
-			//	m_pWarnings->addException(CNMRException(NMR_ERROR_NAMESPACE_INVALID_ELEMENT), mrwInvalidOptionalValue);
+			else
+				m_pWarnings->addException(CNMRException(NMR_ERROR_NAMESPACE_INVALID_ELEMENT), mrwInvalidOptionalValue);
 		}
 
-		if (wcscmp(pNameSpace, XML_3MF_NAMESPACE_SLICESPEC) == 0) {
-			if (wcscmp(pChildName, XML_3MF_ELEMENT_SLICESTACKRESOURCE) == 0) {
+		if (strcmp(pNameSpace, XML_3MF_NAMESPACE_SLICESPEC) == 0) {
+			if (strcmp(pChildName, XML_3MF_ELEMENT_SLICESTACKRESOURCE) == 0) {
+
+				m_pProgressMonitor->SetProgressIdentifier(ProgressIdentifier::PROGRESS_READRESOURCES);
+				m_pProgressMonitor->ReportProgressAndQueryCancelled(true);
+
 				PModelReaderNode pXMLNode = std::make_shared<CModelReaderNode_Slice1507_SliceStack>(
-					m_pModel, m_pWarnings, m_sPath.c_str());
+					m_pModel, m_pWarnings, m_pProgressMonitor, m_sPath.c_str());
 				pXMLNode->parseXML(pXMLReader);
 			}
 			else
 				m_pWarnings->addException(CNMRException(NMR_ERROR_NAMESPACE_INVALID_ELEMENT), mrwInvalidOptionalValue);
 		}
 
+		if (strcmp(pNameSpace, XML_3MF_NAMESPACE_VOLUMETRICSPEC) == 0) {
+			if (strcmp(pChildName, XML_3MF_ELEMENT_IMAGE3D) == 0) {
+				PModelReaderNode pXMLNode = std::make_shared<CModelReaderNode_Volumetric2201_Image3D>(
+					m_pModel, m_pWarnings);
+				pXMLNode->parseXML(pXMLReader);
+			}
+			else if (strcmp(pChildName, XML_3MF_ELEMENT_FUNCTION_FROM_IMAGE3D) == 0)
+			{
+				PModelReaderNode pXMLNode = std::make_shared<CModelReaderNode_FunctionFromImage3D>(
+					m_pModel, m_pWarnings);
+				pXMLNode->parseXML(pXMLReader);
+			} if (strcmp(pChildName, XML_3MF_ELEMENT_VOLUMEDATA) == 0)
+			{
+				PModelReaderNode pXMLNode = std::make_shared<CModelReaderNode_Volumetric2201_VolumeData>(
+					m_pModel, m_pWarnings);
+				pXMLNode->parseXML(pXMLReader);
+			}
+			else
+				m_pWarnings->addException(CNMRException(NMR_ERROR_NAMESPACE_INVALID_ELEMENT), mrwInvalidOptionalValue);
+		}
+
+		if (strcmp(pNameSpace, XML_3MF_NAMESPACE_IMPLICITSPEC) == 0) {
+			if ((strcmp(pChildName, XML_3MF_ELEMENT_IMPLICIT_FUNCTION_DEPRECATED) == 0) || (strcmp(pChildName, XML_3MF_ELEMENT_IMPLICIT_FUNCTION) == 0))
+			{
+				PModelReaderNode_ImplicitFunction pXMLNode = std::make_shared<CModelReaderNode_ImplicitFunction>(m_pModel, m_pWarnings);
+				pXMLNode->parseXML(pXMLReader);
+			}
+			else
+				m_pWarnings->addException(CNMRException(NMR_ERROR_NAMESPACE_INVALID_ELEMENT), mrwInvalidOptionalValue);
+		}
 
 	}
 

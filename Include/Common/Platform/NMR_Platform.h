@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation 
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -39,13 +38,14 @@ classes.
 #include "Common/Platform/NMR_ExportStream.h"
 #include "Common/Platform/NMR_XmlReader.h"
 #include "Common/Platform/NMR_XmlWriter.h"
+#include "Common/3MF_ProgressMonitor.h"
 
 namespace NMR {
 
-	PImportStream fnCreateImportStreamInstance (_In_ const nfWChar * pwszFileName);
-	PExportStream fnCreateExportStreamInstance (_In_ const nfWChar * pwszFileName);
-	PXmlReader fnCreateXMLReaderInstance (_In_ PImportStream pImportStream);
-	PXmlWriter fnCreateXMLWriterInstance (_In_ PExportStream pExportStream);
+	PImportStream fnCreateImportStreamInstance(_In_ const nfChar * pszFileName);
+	PExportStream fnCreateExportStreamInstance(_In_ const nfChar * pszFileName);
+	PXmlReader fnCreateXMLReaderInstance(_In_ PImportStream pImportStream, PProgressMonitor  pProgressMonitor);
+	PXmlWriter fnCreateXMLWriterInstance(_In_ PExportStream pExportStream, PProgressMonitor pProgressMonitor);
 
 }
 

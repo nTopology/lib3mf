@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -47,21 +47,20 @@ namespace NMR {
 		NMATRIX3 m_mTransform;
 
 		PUUID m_UUID;
-		std::wstring m_sPath;
 	public:
 		CModelComponent() = delete;
 		CModelComponent(_In_ CModelObject * pObject);
 		CModelComponent(_In_ CModelObject * pObject, _In_ const NMATRIX3 mTransform);
 		~CModelComponent();
 		
-		CModelObject * getObject ();
-		
+		CModelObject * getObject();
+		CModel * getModel();
+
 		NMATRIX3 getTransform ();
 		void setTransform(_In_ const NMATRIX3 mTransform);
 		
-		PackageResourceID getObjectID();
 		nfBool hasTransform();
-		std::wstring getTransformString();
+		std::string getTransformString();
 
 		// Production extension UUID
 		PUUID uuid();

@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation (Original Author)
-Copyright (C) 2015 netfabb GmbH
+Copyright (C) 2018 3MF Consortium
 
 All rights reserved.
 
@@ -45,7 +44,7 @@ NMR_ModelReaderNode093_Texture.cpp implements the Model Reader Texture Class.
 
 namespace NMR {
 
-	CModelReaderNode093_Texture::CModelReaderNode093_Texture(_In_ CModel * pModel, _In_ PModelReaderWarnings pWarnings)
+	CModelReaderNode093_Texture::CModelReaderNode093_Texture(_In_ CModel * pModel, _In_ PModelWarnings pWarnings)
 		: CModelReaderNode(pWarnings)
 	{
 		// Initialize variables
@@ -66,51 +65,70 @@ namespace NMR {
 		if (m_nID == 0)
 			throw CNMRException(NMR_ERROR_MISSINGMODELRESOURCEID);
 
-		// Create Resource
-		m_pTexture2DResource = std::make_shared<CModelTexture2DResource> (m_nID, m_pModel);
 
+		PModelAttachment pAttachment = m_pModel->findModelAttachment(m_sPath);
+		m_pTexture2DResource = CModelTexture2DResource::make(m_nID, m_pModel, pAttachment);
 		m_pModel->addResource(m_pTexture2DResource);
 
-		// Set Properties
-		m_pTexture2DResource->setPath(m_sPath);
 		m_pTexture2DResource->setContentTypeString(m_sContentType, true);
-		m_pTexture2DResource->setTileStyleU(m_sTileStyleU);
-		m_pTexture2DResource->setTileStyleV(m_sTileStyleV);
+
+		if (!m_sTileStyleU.empty()) {
+			try {
+				m_pTexture2DResource->setTileStyleUString(m_sTileStyleU);
+			}
+			catch (CNMRException & e) {
+				if (e.getErrorCode() == NMR_ERROR_INVALIDTILESTYLE)
+					m_pWarnings->addException(e, mrwInvalidOptionalValue);
+				else
+					throw e;
+			}
+		}
+		if (!m_sTileStyleV.empty()) {
+			try {
+				m_pTexture2DResource->setTileStyleVString(m_sTileStyleV);
+			}
+			catch (CNMRException & e) {
+				if (e.getErrorCode() == NMR_ERROR_INVALIDTILESTYLE)
+					m_pWarnings->addException(e, mrwInvalidOptionalValue);
+				else
+					throw e;
+			}
+		}
 
 		// Parse Content
 		parseContent(pXMLReader);
 
 	}
 
-	void CModelReaderNode093_Texture::OnAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue)
+	void CModelReaderNode093_Texture::OnAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue)
 	{
 		__NMRASSERT(pAttributeName);
 		__NMRASSERT(pAttributeValue);
 
-		if (wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_TEXTURE2D_ID) == 0) {
+		if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_TEXTURE2D_ID) == 0) {
 			if (m_nID != 0)
 				throw CNMRException(NMR_ERROR_DUPLICATERESOURCEID);
 
 			// Convert to integer and make a input and range check!
-			m_nID = fnWStringToUint32(pAttributeValue);
+			m_nID = fnStringToUint32(pAttributeValue);
 			// Increase ID to avoid 0 (was allowed for 0.9.3)
 			m_nID++;
 		}
 
-		if (wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_TEXTURE2D_PATH) == 0) {
-			m_sPath = std::wstring(pAttributeValue);
+		if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_TEXTURE2D_PATH) == 0) {
+			m_sPath = std::string(pAttributeValue);
 		}
 
-		if (wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_TEXTURE2D_CONTENTTYPE) == 0) {
-			m_sContentType = std::wstring(pAttributeValue);
+		if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_TEXTURE2D_CONTENTTYPE) == 0) {
+			m_sContentType = std::string(pAttributeValue);
 		}
 
-		if (wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_TEXTURE2D_TILESTYLEU) == 0) {
-			m_sTileStyleU = std::wstring(pAttributeValue);
+		if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_TEXTURE2D_TILESTYLEU) == 0) {
+			m_sTileStyleU = std::string(pAttributeValue);
 		}
 
-		if (wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_TEXTURE2D_TILESTYLEV) == 0) {
-			m_sTileStyleV = std::wstring(pAttributeValue);
+		if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_TEXTURE2D_TILESTYLEV) == 0) {
+			m_sTileStyleV = std::string(pAttributeValue);
 		}
 
 	}
@@ -120,26 +138,25 @@ namespace NMR {
 		return m_nID;
 	}
 
-	std::wstring CModelReaderNode093_Texture::getPath()
+	std::string CModelReaderNode093_Texture::getPath()
 	{
 		return m_sPath;
 	}
 
-	std::wstring CModelReaderNode093_Texture::getContentType()
+	std::string CModelReaderNode093_Texture::getContentType()
 	{
 		return m_sContentType;
 	}
 
-	std::wstring CModelReaderNode093_Texture::getTileStyleU()
+	std::string CModelReaderNode093_Texture::getTileStyleU()
 	{
 		return m_sTileStyleU;
 	}
 
-	std::wstring CModelReaderNode093_Texture::getTileStyleV()
+	std::string CModelReaderNode093_Texture::getTileStyleV()
 	{
 		return m_sTileStyleV;
 	}
-
 
 }
 

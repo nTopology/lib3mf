@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -35,7 +35,7 @@ This is a stream class for importing from a libZIP object.
 #define __NMR_IMPORTSTREAM_ZIP
 
 #include "Common/Platform/NMR_ImportStream.h"
-#include "Libraries/libzip/zip.h"
+#include "zip.h"
 
 #define IMPORTSTREAM_ZIP_CHUNKSIZE (1024 * 1024)
 
@@ -53,7 +53,7 @@ namespace NMR {
 		virtual nfBool seekPosition(_In_ nfUint64 position, _In_ nfBool bHasToSucceed);
 		virtual nfBool seekForward(_In_ nfUint64 bytes, _In_ nfBool bHasToSucceed);
 		virtual nfBool seekFromEnd(_In_ nfUint64 bytes, _In_ nfBool bHasToSucceed);
-		virtual nfUint64 readBuffer(_In_ nfByte * pBuffer, _In_ nfUint64 cbTotalBytesToRead, nfBool bNeedsToReadAll);
+		virtual nfUint64 readIntoBuffer(_In_ nfByte * pBuffer, _In_ nfUint64 cbTotalBytesToRead, nfBool bNeedsToReadAll);
 		virtual nfUint64 retrieveSize();
 		virtual void writeToFile(_In_ const nfWChar * pwszFileName);
 		virtual PImportStream copyToMemory();

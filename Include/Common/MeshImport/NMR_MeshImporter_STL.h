@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -38,16 +38,26 @@ This is a derived class for Importing the binary STL and color STL Mesh Format.
 #include "Common/Math/NMR_Geometry.h" 
 #include "Common/Mesh/NMR_Mesh.h" 
 #include "Common/MeshImport/NMR_MeshImporter.h" 
+#include "Common/NMR_Architecture_Utils.h"
 
 #include <vector>
 
 namespace NMR {
 
 #pragma pack (1)
-	typedef struct {
+	typedef struct MESHFORMAT_STL_FACET {
 		NVEC3 m_normal;
-		NVEC3 m_vertieces[3];
+		NVEC3 m_vertices[3];
 		nfUint16 m_attribute;
+		void swapByteOrder() {
+			m_attribute = swapBytes(m_attribute);
+			for (nfUint32 i = 0; i < 3; i++) {
+				m_normal.m_fields[i] = swapBytes(m_normal.m_fields[i]);
+				for (nfUint32 j = 0; j < 3; j++) {
+					m_vertices[i].m_fields[j] = swapBytes(m_vertices[i].m_fields[j]);
+				}
+			}
+		}
 	} MESHFORMAT_STL_FACET;
 #pragma pack()
 

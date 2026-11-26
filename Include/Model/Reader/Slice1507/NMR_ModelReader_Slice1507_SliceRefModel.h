@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2017 Autodesk Inc.
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -33,24 +33,24 @@ NMR_ModelReaderNode_slice1507.h covers the private 3MF slice extension.
 #ifndef __NMR_MODELREADERNODE_SLICE1507_SLICEREFMODEL
 #define __NMR_MODELREADERNODE_SLICE1507_SLICEREFMODEL
 
-#include "Model/Reader/NMR_ModelReaderNode_Model.h"
+#include "Model/Reader/NMR_ModelReaderNode_ModelBase.h"
 #include "Model/Classes/NMR_ModelComponent.h"
 #include "Model/Classes/NMR_ModelComponentsObject.h"
 #include "Model/Classes/NMR_ModelObject.h"
-#include "Common/MeshInformation/NMR_MeshInformation_Slices.h"
+#include "Model/Classes/NMR_ModelConstants_Slices.h"
 
 namespace NMR {
 
-	class CModelReader_Slice1507_SliceRefModel : public CModelReaderNode_Model {
+	class CModelReader_Slice1507_SliceRefModel : public CModelReaderNode_ModelBase {
 	private:
-		std::wstring m_sSliceRefPath;
+		std::string m_sSliceRefPath;
 
 	protected:
-		virtual void OnNSChildElement(_In_z_ const nfWChar * pChildName, _In_z_ const nfWChar * pNameSpace, _In_ CXmlReader * pXMLReader);
+		virtual void OnNSChildElement(_In_z_ const nfChar * pChildName, _In_z_ const nfChar * pNameSpace, _In_ CXmlReader * pXMLReader);
 
 	public:
 		CModelReader_Slice1507_SliceRefModel() = delete;
-		CModelReader_Slice1507_SliceRefModel(_In_ CModel *pModel, _In_ PModelReaderWarnings pWarnings, _In_z_ const nfWChar *pSliceRefPath);
+		CModelReader_Slice1507_SliceRefModel(_In_ CModel *pModel, _In_ PModelWarnings pWarnings, _In_z_ const std::string sSliceRefPath);
 
 		virtual void parseXML(_In_ CXmlReader * pXMLReader);
 	};

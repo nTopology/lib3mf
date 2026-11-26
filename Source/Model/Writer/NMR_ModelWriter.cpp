@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation (Original Author)
-Copyright (C) 2015 netfabb GmbH
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -38,17 +37,32 @@ A model writer exports the in memory represenation into a model file.
 #include "Common/Platform/NMR_XmlWriter.h" 
 #include "Common/NMR_Exception.h" 
 #include "Common/NMR_Exception_Windows.h" 
+#include "Common/NMR_SecureContext.h"
+
 
 #include <sstream>
 
 namespace NMR {
 
-	CModelWriter::CModelWriter(_In_ PModel pModel)
-	{
-		if (!pModel.get())
-			throw CNMRException(NMR_ERROR_INVALIDPARAM);
+	const int MIN_DECIMAL_PRECISION = 1;
+	const int MAX_DECIMAL_PRECISION = 16;
 
-		m_pModel = pModel;
+	CModelWriter::CModelWriter(_In_ PModel pModel):
+		CModelContext(pModel),
+		m_nDecimalPrecision(6)
+	{
+	}
+
+	void CModelWriter::SetDecimalPrecision(nfUint32 nDecimalPrecision)
+	{
+		if ((nDecimalPrecision < MIN_DECIMAL_PRECISION) || (nDecimalPrecision > MAX_DECIMAL_PRECISION))
+			throw CNMRException(NMR_ERROR_INVALIDPARAM);
+		m_nDecimalPrecision = nDecimalPrecision;
+	}
+
+	nfUint32 CModelWriter::GetDecimalPrecision()
+	{
+		return m_nDecimalPrecision;
 	}
 
 }

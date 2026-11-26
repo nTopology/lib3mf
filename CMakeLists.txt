@@ -1,393 +1,527 @@
-cmake_minimum_required (VERSION 2.8)
+cmake_minimum_required (VERSION 3.10)
 
-IF (NOT ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} LESS 3.1)
-  cmake_policy(SET CMP0054 OLD)
-ENDIF ()
+cmake_policy(SET CMP0054 NEW)
+cmake_policy(SET CMP0048 NEW)
 
-project (lib3MF)
+
+# nTop: is lib3mf the top-level project (not embedded via add_subdirectory())?
+# Embedded builds must not install, package or change global state of the
+# parent project. Evaluated before project(), where CMAKE_CURRENT_SOURCE_DIR is
+# the directory of this file (PROJECT_IS_TOP_LEVEL needs CMake 3.21, this
+# project supports 3.10).
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+  set(LIB3MF_IS_TOP_LEVEL ON)
+else()
+  set(LIB3MF_IS_TOP_LEVEL OFF)
+endif()
+
+if(LIB3MF_IS_TOP_LEVEL)
+  set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+endif()
+
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 
 # Define Version
-set(LIB3MF_VERSION_MAJOR 1)				# increase on every backward-compatibility breaking change of the API
-set(LIB3MF_VERSION_MINOR 0)				# increase on every backward compatible change of the API
-set(LIB3MF_VERSION_MICRO 2)				# increase on on every change that does not alter the API
+set(LIB3MF_VERSION_MAJOR 2)        # increase on every backward-compatibility breaking change of the API
+set(LIB3MF_VERSION_MINOR 5)        # increase on every backward compatible change of the API
+set(LIB3MF_VERSION_MICRO 0)        # increase on on every change that does not alter the API
+set(LIB3MF_VERSION_PRERELEASE "")  # denotes pre-release information of a version of lib3mf
+if(LIB3MF_IS_TOP_LEVEL)
+  set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum OS X deployment version")
+endif()
+project(lib3mf
+  VERSION ${LIB3MF_VERSION_MAJOR}.${LIB3MF_VERSION_MINOR}.${LIB3MF_VERSION_MICRO}
+  DESCRIPTION "An implementation of the 3D Manufacturing Format file standard"
+)
 
-set(NMR_COM_NATIVE FALSE) # by default, do not actually implement a COM interface
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-  # using GCC
-  add_definitions(-DBUILD_DLL)
-  add_compile_options(-Wall)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -O2")
-elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-  # using GCC
-  add_definitions(-DBUILD_DLL)
-  add_compile_options(-Wall) 
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -O2")
-  set(CMAKE_MACOSX_RPATH ON)
-elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-  # using Visual Studio C++
-  add_definitions(-DBUILD_DLL -DLIB3MF_EXPORTS /W3)
-  SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} xmllite.lib")
-  add_definitions(-D_CRT_NONSTDC_NO_DEPRECATE -D_CRT_SECURE_NO_WARNINGS)
-  if(NMR_COM_NATIVE)
-	add_definitions(-DNMR_COM_NATIVE)
+option(LIB3MF_INSTALL "Generate install rules and CPack packaging for lib3mf" ${LIB3MF_IS_TOP_LEVEL})
+
+# macOS: ensure zlib includes <unistd.h> (affects ALL targets incl. Tests)
+if(APPLE)
+  add_compile_definitions(Z_HAVE_UNISTD_H=1)
+endif()
+
+if(LIB3MF_IS_TOP_LEVEL)
+  find_program(buildcache_program buildcache)
+  if(buildcache_program)
+    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${buildcache_program}")
   endif()
+endif()
+
+set(CMAKE_INSTALL_BINDIR bin CACHE PATH "directory for installing binary files")
+set(CMAKE_INSTALL_LIBDIR lib CACHE PATH "directory for installing library files")
+set(CMAKE_INSTALL_INCLUDEDIR include CACHE PATH "directory for installing header files")
+
+# Build lib3mf as shared by default, but do not implicitly switch third-party
+# dependencies (which often key off BUILD_SHARED_LIBS) to shared as well.
+set(_lib3mf_build_shared_default ON)
+if(DEFINED BUILD_SHARED_LIBS)
+  set(_lib3mf_build_shared_default "${BUILD_SHARED_LIBS}")
+endif()
+option(LIB3MF_BUILD_SHARED "Build lib3mf as shared library" ${_lib3mf_build_shared_default})
+unset(_lib3mf_build_shared_default)
+option(LIB3MF_BUILD_WASM "Build JavaScript/WebAssembly embind bindings from ACT generated sources" OFF)
+
+option(USE_INCLUDED_ZLIB "Use included zlib" ON)
+option(USE_INCLUDED_LIBZIP "Use included libzip" ON)
+option(USE_INCLUDED_SSL "Use included libressl" ON)
+option(USE_INCLUDED_CPPBASE64 "Use included cpp-base64 sources" ON)
+option(USE_INCLUDED_FASTFLOAT "Use included fast_float headers" ON)
+option(BUILD_FOR_CODECOVERAGE "Build for code coverage analysis" OFF)
+option(STRIP_BINARIES "Strip binaries (on non-apple)" ON)
+option(USE_PLATFORM_UUID "Use UUID geneator that is provided by the OS (always ON for Windows)" OFF)
+
+if (LIB3MF_BUILD_WASM)
+  if (NOT EMSCRIPTEN)
+    message(FATAL_ERROR "LIB3MF_BUILD_WASM requires the Emscripten toolchain. Configure with emcmake.")
+  endif()
+  if (LIB3MF_BUILD_SHARED)
+    message(STATUS "LIB3MF_BUILD_WASM forces LIB3MF_BUILD_SHARED=OFF for static linking into the WASM module.")
+    set(LIB3MF_BUILD_SHARED OFF CACHE BOOL "Build lib3mf as shared library" FORCE)
+  endif()
+endif()
+
+add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/MP>)
+set (CMAKE_CXX_STANDARD 17)
+
+		if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+		  # using GCC
+		  if (LIB3MF_BUILD_SHARED)
+		    add_definitions(-DBUILD_DLL)
+		  endif()
+		  add_compile_options(-Wall)
+		  if (CMAKE_BUILD_TYPE MATCHES DEBUG)
+		    add_compile_options(-g)
+	    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Og")
+	  else()
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -O2")
+  endif(CMAKE_BUILD_TYPE MATCHES DEBUG)
   
-  string(REGEX REPLACE "/bin/[^/]*$" "" VCINSTALLDIR "${CMAKE_C_COMPILER}")
-  message(STATUS "Guessed MSVC directory: ${VCINSTALLDIR}")
-  link_directories ("${VCINSTALLDIR}/../../../UnitTest/lib")
+		elseif ("${CMAKE_SYSTEM_NAME}" MATCHES "Darwin")
+		  # using GCC
+		  if (LIB3MF_BUILD_SHARED)
+		    add_definitions(-DBUILD_DLL)
+		  endif()
+		  add_compile_options(-Wall) 
+		  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -O2")
+		  set(CMAKE_MACOSX_RPATH ON)
+	endif()
+
+if (${MSVC})
+  # using Visual Studio C++
+
+  # this ensures that the min/max macros of minwindef.h are not used
+  add_definitions(-DNOMINMAX)
+
+  #add_definitions(/W3)
+
+  # add_definitions(-D_CRT_NONSTDC_NO_DEPRECATE -D_CRT_SECURE_NO_WARNINGS)
+  # set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
+  # set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
 endif()
 
-file(GLOB LIBZIP_FILES ./Source/Libraries/libzip/*.c)
-
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/Include/Model/COM/NMR_COMVersion.h.in" "${CMAKE_CURRENT_BINARY_DIR}/Include/Model/COM/NMR_COMVersion.h")
-
-# sources for native COM implementation or COM emulation
-set(SRCS_COM)
-
-if(NMR_COM_NATIVE)
-	set(SRCS_COM
-	./Source/Common/Platform/NMR_ExportStream_COM.cpp
-	./Source/Common/Platform/NMR_ImportStream_COM.cpp
-	./Source/Common/Platform/NMR_Platform_COM.cpp
-	./Source/Common/Platform/NMR_XmlReader_COM.cpp
-	./Source/Common/Platform/NMR_XmlWriter_COM.cpp
-	./Source/Model/Reader/NMR_ModelReader_3MF_OPC.cpp
-	./Source/Model/Writer/NMR_ModelWriter_3MF_OPC.cpp
-	)
-else()
-	set(SRCS_COM
-	${LIBZIP_FILES}
-	./Source/Model/COM/NMR_COMInterface_GCC.cpp
-	./Source/Common/Platform/NMR_Platform_GCC.cpp
-	./Source/Common/OPC/NMR_OpcPackageReader.cpp
-	./Source/Common/OPC/NMR_OpcPackageRelationshipReader.cpp
-	./Source/Common/OPC/NMR_OpcPackageContentTypesReader.cpp
-	./Source/Common/Platform/NMR_ImportStream_GCC_Native.cpp
-	./Source/Common/Platform/NMR_ImportStream_ZIP.cpp
-	./Source/Common/Platform/NMR_ExportStream_GCC_Native.cpp
-	./Source/Common/Platform/NMR_ExportStream_GCC_Win32.cpp
-	./Source/Common/Platform/NMR_ExportStream_ZIP.cpp
-	./Source/Common/Platform/NMR_XmlReader_Native.cpp
-	./Source/Model/Reader/NMR_ModelReader_3MF_Native.cpp
-	./Source/Model/Reader/NMR_ModelReader_3MF_GCC.cpp
-	)
-endif()
-
-set(SRCS_WIN_MAIN
-./Source/Main/dllmain.cpp
-)
-
-set(SRCS_WIN_MANAGEDTEST
-./Source/UnitTests/UnitTest_Geometry.cpp
-./Source/UnitTests/UnitTest_Mesh.cpp
-./Source/UnitTests/UnitTest_MeshFormat_STL.cpp
-./Source/UnitTests/UnitTest_Model.cpp
-./Source/UnitTests/UnitTest_ModelFactory.cpp
-)
-
-set(SRCS_UNITTEST
-./Source/UnitTests/UnitTest_AllTests.cpp
-./Source/UnitTests/UnitTest_Attachments.cpp
-./Source/UnitTests/UnitTest_BeamLattice.cpp
-./Source/UnitTests/UnitTest_Production.cpp
-./Source/UnitTests/UnitTest_ReaderStrictMode.cpp
-./Source/UnitTests/UnitTest_Extensions.cpp
-./Source/UnitTests/UnitTest_OPC_Issues.cpp
-./Source/UnitTests/UnitTest_ReadWrite.cpp
-./Source/UnitTests/UnitTest_Slice.cpp
-./Source/UnitTests/UnitTest_Textures.cpp
-./Source/UnitTests/UnitTest_Thumbnails.cpp
-)
-
-set(SRCS_BATCHTEST
-./Source/UnitTests/UnitTest_BatchTests.cpp
-)
-
-set(SRCS_UNIX_MAIN
-./Source/Main/main.cpp
-)
-
-set(SRCS_COMMON
-${SRCS_COM}
-./Source/Model/Reader/NMR_ModelReader_InstructionElement.cpp
-./Source/Common/Math/NMR_Matrix.cpp
-./Source/Common/Math/NMR_PairMatchingTree.cpp
-./Source/Common/Math/NMR_Vector.cpp
-./Source/Common/Math/NMR_VectorTree.cpp
-./Source/Common/MeshExport/NMR_MeshExporter.cpp
-./Source/Common/MeshExport/NMR_MeshExporter_STL.cpp
-./Source/Common/MeshImport/NMR_MeshImporter.cpp
-./Source/Common/MeshImport/NMR_MeshImporter_STL.cpp
-./Source/Common/MeshInformation/NMR_MeshInformation.cpp
-./Source/Common/MeshInformation/NMR_MeshInformationContainer.cpp
-./Source/Common/MeshInformation/NMR_MeshInformationFactory.cpp
-./Source/Common/MeshInformation/NMR_MeshInformationHandler.cpp
-./Source/Common/MeshInformation/NMR_MeshInformation_BaseMaterials.cpp
-./Source/Common/MeshInformation/NMR_MeshInformation_NodeColors.cpp
-./Source/Common/MeshInformation/NMR_MeshInformation_TexCoords.cpp
-./Source/Common/Mesh/NMR_Mesh.cpp
-./Source/Common/Mesh/NMR_BeamLattice.cpp
-./Source/Common/Mesh/NMR_MeshBuilder.cpp
-./Source/Common/NMR_Exception.cpp
-./Source/Common/NMR_Exception_Windows.cpp
-./Source/Common/NMR_StringUtils.cpp
-./Source/Common/NMR_UUID.cpp
-./Source/Common/OPC/NMR_OpcPackagePart.cpp
-./Source/Common/OPC/NMR_OpcPackageRelationship.cpp
-./Source/Common/OPC/NMR_OpcPackageWriter.cpp
-./Source/Common/Platform/NMR_ExportStream.cpp
-./Source/Common/Platform/NMR_ExportStream_Callback.cpp
-./Source/Common/Platform/NMR_ExportStream_GCC.cpp
-./Source/Common/Platform/NMR_ExportStream_Memory.cpp
-./Source/Common/Platform/NMR_ExportStream_Dummy.cpp
-./Source/Common/Platform/NMR_ExportStream_ZIP.cpp
-./Source/Common/Platform/NMR_ImportStream_GCC.cpp
-./Source/Common/Platform/NMR_ImportStream_Callback.cpp
-./Source/Common/Platform/NMR_ImportStream_Memory.cpp
-./Source/Common/Platform/NMR_PortableZIPWriter.cpp
-./Source/Common/Platform/NMR_PortableZIPWriterEntry.cpp
-./Source/Common/Platform/NMR_Time.cpp
-./Source/Common/Platform/NMR_XmlReader.cpp
-./Source/Common/Platform/NMR_XmlReader_GCC.cpp
-./Source/Common/Platform/NMR_XmlWriter.cpp
-./Source/Common/Platform/NMR_XmlWriter_GCC.cpp
-./Source/Common/Platform/NMR_XmlWriter_Native.cpp
-./Source/Libraries/zlib/adler32.c
-./Source/Libraries/zlib/compress.c
-./Source/Libraries/zlib/crc32.c
-./Source/Libraries/zlib/deflate.c
-./Source/Libraries/zlib/infback.c
-./Source/Libraries/zlib/inffast.c
-./Source/Libraries/zlib/inflate.c
-./Source/Libraries/zlib/inftrees.c
-./Source/Libraries/zlib/trees.c
-./Source/Libraries/zlib/uncompr.c
-./Source/Libraries/zlib/zutil.c
-./Source/Model/Classes/NMR_PackageResourceID.cpp
-./Source/Model/Classes/NMR_Model.cpp
-./Source/Model/Classes/NMR_ModelAttachment.cpp
-./Source/Model/Classes/NMR_ModelBaseMaterial.cpp
-./Source/Model/Classes/NMR_ModelBaseMaterials.cpp
-./Source/Model/Classes/NMR_ModelBuildItem.cpp
-./Source/Model/Classes/NMR_ModelComponent.cpp
-./Source/Model/Classes/NMR_ModelComponentsObject.cpp
-./Source/Model/Classes/NMR_ModelDefaultProperty.cpp
-./Source/Model/Classes/NMR_ModelDefaultProperty_BaseMaterial.cpp
-./Source/Model/Classes/NMR_ModelDefaultProperty_Color.cpp
-./Source/Model/Classes/NMR_ModelDefaultProperty_TexCoord2D.cpp
-./Source/Model/Classes/NMR_ModelMeshBeamLatticeAttributes.cpp
-./Source/Model/Classes/NMR_ModelMeshObject.cpp
-./Source/Model/Classes/NMR_ModelMetaData.cpp
-./Source/Model/Classes/NMR_ModelObject.cpp
-./Source/Model/Classes/NMR_ModelResource.cpp
-./Source/Model/Classes/NMR_ModelTexture2D.cpp
-./Source/Model/Classes/NMR_ModelSliceStackResource.cpp
-./Source/Model/COM/NMR_COMInterface_Model.cpp
-./Source/Model/COM/NMR_COMInterface_ModelAttachment.cpp
-./Source/Model/COM/NMR_COMInterface_ModelBaseMaterial.cpp
-./Source/Model/COM/NMR_COMInterface_ModelBuildItem.cpp
-./Source/Model/COM/NMR_COMInterface_ModelBuildItemIterator.cpp
-./Source/Model/COM/NMR_COMInterface_ModelComponent.cpp
-./Source/Model/COM/NMR_COMInterface_ModelComponentsObject.cpp
-./Source/Model/COM/NMR_COMInterface_ModelDefaultPropertyHandler.cpp
-./Source/Model/COM/NMR_COMInterface_ModelFactory.cpp
-./Source/Model/COM/NMR_COMInterface_ModelMeshObject.cpp
-./Source/Model/COM/NMR_COMInterface_ModelMeshBeamSet.cpp
-./Source/Model/COM/NMR_COMInterface_ModelPropertyHandler.cpp
-./Source/Model/COM/NMR_COMInterface_ModelReader.cpp
-./Source/Model/COM/NMR_COMInterface_ModelResourceFactory.cpp
-./Source/Model/COM/NMR_COMInterface_ModelResourceIterator.cpp
-./Source/Model/COM/NMR_COMInterface_ModelTexture2D.cpp
-./Source/Model/COM/NMR_COMInterface_ModelWriter.cpp
-./Source/Model/COM/NMR_COMInterface_Slice.cpp
-./Source/Model/COM/NMR_DLLInterfaces.cpp
-./Source/Model/Reader/BeamLattice1702/NMR_ModelReaderNode_BeamLattice1702_Beam.cpp
-./Source/Model/Reader/BeamLattice1702/NMR_ModelReaderNode_BeamLattice1702_Beams.cpp
-./Source/Model/Reader/BeamLattice1702/NMR_ModelReaderNode_BeamLattice1702_BeamLattice.cpp
-./Source/Model/Reader/BeamLattice1702/NMR_ModelReaderNode_BeamLattice1702_BeamSet.cpp
-./Source/Model/Reader/BeamLattice1702/NMR_ModelReaderNode_BeamLattice1702_BeamSets.cpp
-./Source/Model/Reader/BeamLattice1702/NMR_ModelReaderNode_BeamLattice1702_Ref.cpp
-./Source/Model/Reader/NMR_ModelReader.cpp
-./Source/Model/Reader/NMR_ModelReaderNode.cpp
-./Source/Model/Reader/NMR_ModelReaderNode_Model.cpp
-./Source/Model/Reader/NMR_ModelReaderWarnings.cpp
-./Source/Model/Reader/NMR_ModelReader_3MF.cpp
-./Source/Model/Reader/NMR_ModelReader_ColorMapping.cpp
-./Source/Model/Reader/NMR_ModelReader_STL.cpp
-./Source/Model/Reader/NMR_ModelReader_TexCoordMapping.cpp
-./Source/Model/Reader/v093/NMR_ModelReaderNode093_Build.cpp
-./Source/Model/Reader/v093/NMR_ModelReaderNode093_BuildItem.cpp
-./Source/Model/Reader/v093/NMR_ModelReaderNode093_Color.cpp
-./Source/Model/Reader/v093/NMR_ModelReaderNode093_Component.cpp
-./Source/Model/Reader/v093/NMR_ModelReaderNode093_Components.cpp
-./Source/Model/Reader/v093/NMR_ModelReaderNode093_Material.cpp
-./Source/Model/Reader/v093/NMR_ModelReaderNode093_Mesh.cpp
-./Source/Model/Reader/v093/NMR_ModelReaderNode093_Object.cpp
-./Source/Model/Reader/v093/NMR_ModelReaderNode093_Resources.cpp
-./Source/Model/Reader/v093/NMR_ModelReaderNode093_Texture.cpp
-./Source/Model/Reader/v093/NMR_ModelReaderNode093_TextureVertex.cpp
-./Source/Model/Reader/v093/NMR_ModelReaderNode093_TextureVertices.cpp
-./Source/Model/Reader/v093/NMR_ModelReaderNode093_Triangle.cpp
-./Source/Model/Reader/v093/NMR_ModelReaderNode093_Triangles.cpp
-./Source/Model/Reader/v093/NMR_ModelReaderNode093_Vertex.cpp
-./Source/Model/Reader/v093/NMR_ModelReaderNode093_Vertices.cpp
-./Source/Model/Reader/v100/NMR_ModelReaderNode100_BaseMaterial.cpp
-./Source/Model/Reader/v100/NMR_ModelReaderNode100_BaseMaterials.cpp
-./Source/Model/Reader/v100/NMR_ModelReaderNode100_Build.cpp
-./Source/Model/Reader/v100/NMR_ModelReaderNode100_BuildItem.cpp
-./Source/Model/Reader/v100/NMR_ModelReaderNode100_Color.cpp
-./Source/Model/Reader/v100/NMR_ModelReaderNode100_Colors.cpp
-./Source/Model/Reader/v100/NMR_ModelReaderNode100_Component.cpp
-./Source/Model/Reader/v100/NMR_ModelReaderNode100_Components.cpp
-./Source/Model/Reader/v100/NMR_ModelReaderNode100_Mesh.cpp
-./Source/Model/Reader/v100/NMR_ModelReaderNode100_MetaData.cpp
-./Source/Model/Reader/v100/NMR_ModelReaderNode100_Object.cpp
-./Source/Model/Reader/v100/NMR_ModelReaderNode100_Resources.cpp
-./Source/Model/Reader/v100/NMR_ModelReaderNode100_Tex2Coord.cpp
-./Source/Model/Reader/v100/NMR_ModelReaderNode100_Tex2DGroup.cpp
-./Source/Model/Reader/v100/NMR_ModelReaderNode100_Texture2D.cpp
-./Source/Model/Reader/v100/NMR_ModelReaderNode100_Triangle.cpp
-./Source/Model/Reader/v100/NMR_ModelReaderNode100_Triangles.cpp
-./Source/Model/Reader/v100/NMR_ModelReaderNode100_Vertex.cpp
-./Source/Model/Reader/v100/NMR_ModelReaderNode100_Vertices.cpp
-./Source/Model/Reader/Slice1507/NMR_ModelReader_Slice1507_Polygon.cpp
-./Source/Model/Reader/Slice1507/NMR_ModelReader_Slice1507_Segment.cpp
-./Source/Model/Reader/Slice1507/NMR_ModelReader_Slice1507_Slice.cpp
-./Source/Model/Reader/Slice1507/NMR_ModelReader_Slice1507_SliceRef.cpp
-./Source/Model/Reader/Slice1507/NMR_ModelReader_Slice1507_SliceRefModel.cpp
-./Source/Model/Reader/Slice1507/NMR_ModelReader_Slice1507_SliceRefResources.cpp
-./Source/Model/Reader/Slice1507/NMR_ModelReader_Slice1507_SliceStack.cpp
-./Source/Model/Reader/Slice1507/NMR_ModelReader_Slice1507_Vertex.cpp
-./Source/Model/Reader/Slice1507/NMR_ModelReader_Slice1507_Vertices.cpp
-./Source/Model/Writer/NMR_ModelWriter.cpp
-./Source/Model/Writer/NMR_ModelWriterNode.cpp
-./Source/Model/Writer/NMR_ModelWriter_3MF.cpp
-./Source/Model/Writer/NMR_ModelWriter_3MF_GCC.cpp
-./Source/Model/Writer/NMR_ModelWriter_3MF_Native.cpp
-./Source/Model/Writer/NMR_ModelWriter_ColorMapping.cpp
-./Source/Model/Writer/NMR_ModelWriter_STL.cpp
-./Source/Model/Writer/NMR_ModelWriter_TexCoordMapping.cpp
-./Source/Model/Writer/NMR_ModelWriter_TexCoordMappingContainer.cpp
-./Source/Model/Writer/v100/NMR_ModelWriterNode100_Mesh.cpp
-./Source/Model/Writer/v100/NMR_ModelWriterNode100_Model.cpp
-)
-
-if (WIN32)
-	SET(SRCS
-	"${SRCS_WIN_MAIN}"
-	"${SRCS_COMMON}"
-	)
-
-	SET(SRCS_MANAGED_TEST
-	"${SRCS_COMMON}"
-	"${SRCS_WIN_MANAGEDTEST}"
-	)
-	SET(SRCS_DLL_TEST
-	 ./Source/UnitTests/UnitTest_DLLInterfaces.cpp
-	)
-else()
-# Linux and MAC
-	SET(SRCS
-	"${SRCS_UNIX_MAIN}"
-	"${SRCS_COMMON}"
-	)
+if (BUILD_FOR_CODECOVERAGE)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0 -Wall -fprofile-arcs -ftest-coverage -DCREATEJOURNAL")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O0 -Wall -W -fprofile-arcs -ftest-coverage")
+  SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fprofile-arcs -ftest-coverage")
 endif()
 
 
-#if(NOT DEFINED LIB3MF_TESTS)
-#	set(LIB3MF_TESTS TRUE)
-#endif()
-#message("LIB3MF_TESTS ... " ${LIB3MF_TESTS})
+set(CMAKE_CURRENT_SOURCE_DIR_AUTOGENERATED ${CMAKE_CURRENT_SOURCE_DIR}/Autogenerated)
+set(CMAKE_CURRENT_BINARY_DIR_AUTOGENERATED ${CMAKE_CURRENT_BINARY_DIR})
+set(CMAKE_TEMP_HEADER_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}/AutomaticComponentToolkit/Lib3MF_component")
+set(ACT_GENERATED_SOURCE
+  ${CMAKE_CURRENT_SOURCE_DIR_AUTOGENERATED}/Source/lib3mf_interfaceexception.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR_AUTOGENERATED}/Source/lib3mf_interfacewrapper.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR_AUTOGENERATED}/Source/lib3mf_interfacejournal.cpp
+)
 
-
+include(Source/CMakeLists.txt)
 #########################################################
 # Set version info
-
 if(DEFINED ENV{BUILD_NUMBER})
-	set(BUILD_NUMBER $ENV{BUILD_NUMBER})
+  set(BUILD_NUMBER $ENV{BUILD_NUMBER})
 else()
-	set(BUILD_NUMBER 0)
+  set(BUILD_NUMBER 0)
 endif()
-
-if (FALSE AND WIN32)
-	message("BUILD_NUMBER ... " ${BUILD_NUMBER})
-	set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/Release/VersionInfo)
-	
-	include(generate_product_version)
-	generate_product_version(
-	   VERSION_FILES_OUTPUTLOCATION
-	   NAME "lib3MF"
-	   FILE_DESCRIPTION "Lib3MF is the reference-implementation of the 3D Manufacturing Format file standard"
-	   BUNDLE "3MF Consortium"
-	   VERSION_MAJOR ${LIB3MF_VERSION_MAJOR}
-	   VERSION_MINOR ${LIB3MF_VERSION_MINOR}
-	   VERSION_PATCH ${LIB3MF_VERSION_MICRO}
-	   VERSION_REVISION ${BUILD_NUMBER}
-	   PRODUCT_VERSION_MAJOR ${LIB3MF_VERSION_MAJOR}
-	   PRODUCT_VERSION_MINOR ${LIB3MF_VERSION_MINOR}
-	   COMPANY_NAME "3MF Consortium"
-	)
-	message("VERSION_FILES_OUTPUTLOCATION ... " ${VERSION_FILES_OUTPUTLOCATION})
-else()
-	set(VERSION_FILES_OUTPUTLOCATION "")
-endif()
-
-
-#########################################################
-# shared library
-add_library(${PROJECT_NAME} SHARED ${SRCS} ${VERSION_FILES_OUTPUTLOCATION})
-target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Include)
-target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/Include)
 
 if (WIN32)
-	#########################################################
-	# platform specific tests
-	if(LIB3MF_TESTS)
-		SET(UNITTEST_NAME "${PROJECT_NAME}unittests")
-		add_library(${UNITTEST_NAME} SHARED ${SRCS_MANAGED_TEST})
-		target_include_directories(${UNITTEST_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Include)
-		target_include_directories(${UNITTEST_NAME} PUBLIC "${VCINSTALLDIR}/../../../UnitTest/include")
-		target_include_directories(${UNITTEST_NAME} PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/Include)
-	
-		target_compile_options(${UNITTEST_NAME} PUBLIC "$<$<CONFIG:DEBUG>:/Od;/Ob0;/Gm;/sdl;/W3;/WX;/FC;-DNMR_USEASSERTIONS;-DNMR_UNITTESTS;/wd4996>")
-		target_compile_options(${UNITTEST_NAME} PUBLIC "$<$<CONFIG:RELEASE>:/O2;/sdl;/WX;/Oi;/Gy;/FC;/wd4996>")
-		# wd4996 masks the deprecated-warning
-		file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/TestOutput")
-	endif()
-elseif(UNIX AND NOT APPLE)
-	SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES LINK_FLAGS -s)
-	# Uncomment the following to but the version info into the .so-file.
-	SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES SOVERSION "${LIB3MF_VERSION_MAJOR}.${LIB3MF_VERSION_MINOR}.${LIB3MF_VERSION_MICRO}.${BUILD_NUMBER}")
+  message("BUILD_NUMBER ... " ${BUILD_NUMBER})
+  set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/Include/VersionInfo)
+
+  include(generate_product_version)
+    generate_product_version(
+    VERSION_FILES_OUTPUTLOCATION
+    NAME "lib3mf"
+    FILE_DESCRIPTION "lib3mf is an implementation of the 3D Manufacturing Format file standard"
+    BUNDLE "3MF Consortium"
+    VERSION_MAJOR ${LIB3MF_VERSION_MAJOR}
+    VERSION_MINOR ${LIB3MF_VERSION_MINOR}
+    VERSION_PATCH ${LIB3MF_VERSION_MICRO}
+    VERSION_REVISION ${BUILD_NUMBER}
+    PRODUCT_VERSION_MAJOR ${LIB3MF_VERSION_MAJOR}
+    PRODUCT_VERSION_MINOR ${LIB3MF_VERSION_MINOR}
+    PRODUCT_VERSION_PATCH ${LIB3MF_VERSION_MICRO}
+    PRODUCT_VERSION_REVISION ${LIB3MF_VERSION_PRERELEASE}
+    COMPANY_NAME "3MF Consortium"
+  )
+  message("VERSION_FILES_OUTPUTLOCATION ... " ${VERSION_FILES_OUTPUTLOCATION})
+else()
+  set(VERSION_FILES_OUTPUTLOCATION "")
 endif()
 
 
 #########################################################
-# platform independent tests for shared library interface
+if (LIB3MF_BUILD_SHARED)
+  add_library(${PROJECT_NAME} SHARED ${SRCS_COMMON} ${HDRS_COMMON}
+    ${ACT_GENERATED_SOURCE}
+    ${VERSION_FILES_OUTPUTLOCATION}
+  )
+else()
+  add_library(${PROJECT_NAME} STATIC ${SRCS_COMMON} ${HDRS_COMMON}
+    ${ACT_GENERATED_SOURCE}
+    ${VERSION_FILES_OUTPUTLOCATION}
+  )
+endif()
+
+if (${MSVC})
+  # using Visual Studio C++
+
+  # Allow unnamed structs and ensures that the min/max macros of minwindef.h are not used
+
+  # Note the generator expression to limit the scope to c++ compiler, otherwise the RC compiler would get the arguments as well.
+  # Works with ninja, but not with the VS build generators
+  if (CMAKE_GENERATOR MATCHES "Ninja")
+    target_compile_options(${PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-DNOMINMAX /Wv:18>)
+  else()
+    target_compile_options(${PROJECT_NAME} PRIVATE -DNOMINMAX /Wv:18)
+  endif()
+endif()
+
+SOURCE_GROUP("Source Files\\Autogenerated" FILES ${ACT_GENERATED_SOURCE})
+
+
+file(GLOB
+    LIBS_INCLUDE
+    LIST_DIRECTORIES true
+    ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/*/Include
+)
+list(FILTER LIBS_INCLUDE EXCLUDE REGEX "zlib|libzip|libressl")
+target_include_directories(${PROJECT_NAME} PRIVATE ${LIBS_INCLUDE})
+
+# allow FASTFLOAT_ALLOWS_LEADING_PLUS
+add_definitions(-DFASTFLOAT_ALLOWS_LEADING_PLUS=1)
+
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR_AUTOGENERATED}/Source)
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/Include/API)
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/Include)
+target_include_directories(${PROJECT_NAME} PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR_AUTOGENERATED}/Bindings/Cpp>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Bindings/Cpp>
+)
+
+if (USE_INCLUDED_LIBZIP)
+    # Something goes here to check if submodules exist and initialize the submodules if it does not
+    target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/libzip/Include)
+    if(MSVC)
+      target_compile_definitions(${PROJECT_NAME} PRIVATE _CRT_SECURE_NO_WARNINGS)
+      target_compile_definitions(${PROJECT_NAME} PRIVATE _CRT_NONSTDC_NO_DEPRECATE)
+    endif()
+    if(WIN32)
+      target_link_libraries(${PROJECT_NAME} PRIVATE advapi32)
+      # disable win32 build failing 'initializing': conversion from 'zip_uint64_t' to 'size_t', possible loss of data 
+      if("${CMAKE_SIZEOF_VOID_P}" STREQUAL "4")
+        target_compile_options(${PROJECT_NAME} PRIVATE /wd4244)
+      endif()
+    endif()
+
+    # create libzip autogenerated platform specific headers
+    if(NOT EXISTS ${CMAKE_BINARY_DIR}/libzip)
+    set(LIBZIP_CONFIGURE_ARGS
+      "-DZLIB_INCLUDE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/submodules/zlib"
+      "-DZLIB_LIBRARY=zlibstatic"
+      "-DENABLE_COMMONCRYPTO=OFF"
+      "-DENABLE_GNUTLS=OFF"
+      "-DENABLE_MBEDTLS=OFF"
+      "-DENABLE_OPENSSL=OFF"
+      "-DENABLE_WINDOWS_CRYPTO=OFF"
+      "-DENABLE_BZIP2=OFF"
+      "-DENABLE_LZMA=OFF"
+      "-DENABLE_ZSTD=OFF"
+      "-DBUILD_TOOLS=OFF"
+      "-DBUILD_REGRESS=OFF"
+      "-DBUILD_EXAMPLES=OFF"
+      "-DBUILD_DOC=OFF"
+      "-DBUILD_SHARED_LIBS=OFF"
+      "-DLIBZIP_DO_INSTALL=OFF"
+    )
+    if(EMSCRIPTEN)
+      # Avoid libzip's legacy endian probe failing during cross-compilation.
+      list(APPEND LIBZIP_CONFIGURE_ARGS "-DCMAKE_C_BYTE_ORDER=LITTLE_ENDIAN")
+    endif()
+    execute_process(
+      COMMAND ${CMAKE_COMMAND} ${LIBZIP_CONFIGURE_ARGS}
+            "-S" "${CMAKE_CURRENT_SOURCE_DIR}/submodules/libzip" "-B" "${CMAKE_CURRENT_BINARY_DIR}/libzip"   
+      RESULT_VARIABLE CMD_ERROR
+      OUTPUT_QUIET)
+    MESSAGE( STATUS "CMD_ERROR:" ${CMD_ERROR})
+    unset(LIBZIP_CONFIGURE_ARGS)
+    endif()
+    target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/libzip)
+
+    if ((UNIX OR MINGW) AND NOT EMSCRIPTEN)
+      target_compile_options(${PROJECT_NAME} PRIVATE "-DHAVE_FSEEKO")
+      target_compile_options(${PROJECT_NAME} PRIVATE "-DHAVE_FTELLO")
+      target_compile_options(${PROJECT_NAME} PRIVATE "-DHAVE_STRCASECMP")
+      target_compile_options(${PROJECT_NAME} PRIVATE "-DHAVE_UNISTD_H")
+    endif()
+    if (EMSCRIPTEN)
+      target_compile_definitions(${PROJECT_NAME} PRIVATE SIZEOF_OFF_T=8 SIZEOF_SIZE_T=4)
+    endif()
+
+else()
+    set(_lib3mf_external_link_visibility PRIVATE)
+    if (NOT LIB3MF_BUILD_SHARED)
+      set(_lib3mf_external_link_visibility PUBLIC)
+    endif()
+
+    # nTop: a parent project (e.g. turbo) may already provide libzip::zip; do not
+    # run find_package() then, a system libzip-config.cmake can be broken/clash.
+    if (NOT TARGET libzip::zip)
+      find_package(libzip CONFIG QUIET)
+    endif()
+    if (TARGET libzip::zip)
+      target_link_libraries(${PROJECT_NAME} ${_lib3mf_external_link_visibility} libzip::zip)
+    else()
+      find_package(PkgConfig REQUIRED)
+      pkg_check_modules(LIBZIP REQUIRED libzip)
+      target_include_directories(${PROJECT_NAME} PRIVATE ${LIBZIP_INCLUDE_DIRS})
+      target_link_directories(${PROJECT_NAME} PRIVATE ${LIBZIP_LIBRARY_DIRS})
+      target_link_libraries(${PROJECT_NAME} ${_lib3mf_external_link_visibility} ${LIBZIP_LIBRARIES})
+    endif()
+
+    unset(_lib3mf_external_link_visibility)
+endif()
+
+
+if (USE_INCLUDED_ZLIB)
+    target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/Libraries/zlib/Include)
+
+    if(APPLE OR EMSCRIPTEN)
+      # Ensure zlib includes unistd.h where needed (e.g. macOS, Emscripten).
+      target_compile_definitions(${PROJECT_NAME} PRIVATE Z_HAVE_UNISTD_H=1)
+    endif()
+
+else()
+    set(_lib3mf_external_link_visibility PRIVATE)
+    if (NOT LIB3MF_BUILD_SHARED)
+      set(_lib3mf_external_link_visibility PUBLIC)
+    endif()
+
+    # nTop: reuse an existing ZLIB::ZLIB provided by the parent project.
+    if (NOT TARGET ZLIB::ZLIB)
+      find_package(ZLIB QUIET)
+    endif()
+    if (TARGET ZLIB::ZLIB)
+      target_link_libraries(${PROJECT_NAME} ${_lib3mf_external_link_visibility} ZLIB::ZLIB)
+    else()
+      find_package(PkgConfig REQUIRED)
+      pkg_check_modules(ZLIB REQUIRED zlib)
+      target_include_directories(${PROJECT_NAME} PRIVATE ${ZLIB_INCLUDE_DIRS})
+      target_link_directories(${PROJECT_NAME} PRIVATE ${ZLIB_LIBRARY_DIRS})
+      target_link_libraries(${PROJECT_NAME} ${_lib3mf_external_link_visibility} ${ZLIB_LIBRARIES})
+    endif()
+
+    unset(_lib3mf_external_link_visibility)
+endif()
+
+
+if (USE_INCLUDED_CPPBASE64)
+  target_compile_definitions(${PROJECT_NAME} PRIVATE LIB3MF_USE_INCLUDED_CPPBASE64=1)
+else()
+  find_path(CPPBASE64_INCLUDE_DIR NAMES base64.h PATH_SUFFIXES cpp-base64 REQUIRED)
+  find_file(CPPBASE64_SOURCE_FILE NAMES base64.cpp PATH_SUFFIXES cpp-base64 REQUIRED)
+  target_include_directories(${PROJECT_NAME} PRIVATE ${CPPBASE64_INCLUDE_DIR})
+  target_sources(${PROJECT_NAME} PRIVATE ${CPPBASE64_SOURCE_FILE})
+endif()
+
+if (USE_INCLUDED_FASTFLOAT)
+  # nTop: do not depend on the (usually uninitialised) submodules/fast_float.
+  # Libraries/fast_float/Include holds the same headers as the submodule
+  # (v6.0.0, f3ff46f) but flattened, while the sources include
+  # <fast_float/fast_float.h>. Expose them under that prefix from the build tree.
+  set(LIB3MF_FASTFLOAT_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/lib3mf_fast_float/include")
+  file(GLOB _lib3mf_fast_float_headers "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/fast_float/Include/*.h")
+  foreach(_hdr ${_lib3mf_fast_float_headers})
+    get_filename_component(_hdr_name "${_hdr}" NAME)
+    configure_file("${_hdr}" "${LIB3MF_FASTFLOAT_INCLUDE_DIR}/fast_float/${_hdr_name}" COPYONLY)
+  endforeach()
+  unset(_lib3mf_fast_float_headers)
+  target_include_directories(${PROJECT_NAME} PRIVATE ${LIB3MF_FASTFLOAT_INCLUDE_DIR})
+else()
+  find_package(FastFloat CONFIG REQUIRED)
+  target_link_libraries(${PROJECT_NAME} PRIVATE FastFloat::fast_float)
+endif()
+
+
+set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "" IMPORT_PREFIX "" )
+# This makes sure symbols are exported (shared builds only)
+if (LIB3MF_BUILD_SHARED)
+  target_compile_options(${PROJECT_NAME} PRIVATE "-D__LIB3MF_EXPORTS")
+endif()
+# The following two properties are crucial to reduce the number of undesirably exported symbols
+set_target_properties(${PROJECT_NAME} PROPERTIES C_VISIBILITY_PRESET hidden)
+set_target_properties(${PROJECT_NAME} PROPERTIES CXX_VISIBILITY_PRESET hidden)
+set_target_properties(${PROJECT_NAME} PROPERTIES VISIBILITY_INLINES_HIDDEN ON)
+
+set(STARTUPPROJECT ${PROJECT_NAME})
+
+#########################################################
+if (${MSVC})
+  # PRIVATE: these are lib3mf's own build settings (/WX in particular) and must
+  # not leak into targets that link against lib3mf.
+  # wd4996 masks the deprecated-warning
+  target_compile_options(${PROJECT_NAME} PRIVATE "$<$<CONFIG:DEBUG>:/Od;/Ob0;/sdl;/W3;/WX;/FC;/wd4996>")
+  target_compile_options(${PROJECT_NAME} PRIVATE "$<$<CONFIG:RELEASE>:/O2;/sdl;/WX;/Oi;/Gy;/FC;/wd4996>")
+elseif ((UNIX OR MINGW) AND LIB3MF_BUILD_SHARED)
+  # Uncomment the following to put the version info into the .so-file.
+  set_target_properties(${PROJECT_NAME} PROPERTIES VERSION "${LIB3MF_VERSION_MAJOR}.${LIB3MF_VERSION_MINOR}.${LIB3MF_VERSION_MICRO}.${BUILD_NUMBER}")
+  set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION "${LIB3MF_VERSION_MAJOR}")
+  target_compile_options(${PROJECT_NAME} PRIVATE -Wno-incompatible-pointer-types)
+  if (STRIP_BINARIES AND NOT APPLE)
+    set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS -s)
+  endif()
+endif()
+
+# Static build usability (e.g. linking into shared libs)
+if (NOT LIB3MF_BUILD_SHARED)
+  set_target_properties(${PROJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+endif()
+
+## UUID
+if(WIN32)
+	target_compile_definitions(${PROJECT_NAME} PRIVATE GUID_WINDOWS)
+	target_link_libraries(${PROJECT_NAME} PRIVATE ole32 uuid)
+else()
+  if (USE_PLATFORM_UUID)
+    if (APPLE)
+      target_compile_definitions(${PROJECT_NAME} PRIVATE GUID_CFUUID HAVE_UNISTD_H=1)
+      target_link_libraries(${PROJECT_NAME} "-framework Foundation")
+    else()
+      target_compile_definitions(${PROJECT_NAME} PRIVATE GUID_LIBUUID)
+      target_link_libraries(${PROJECT_NAME} PRIVATE uuid)
+    endif()
+  else()
+    target_compile_definitions(${PROJECT_NAME} PRIVATE GUID_CUSTOM)
+  endif()
+endif(WIN32)
+
+if(LIB3MF_INSTALL)
+configure_file(lib3mf.pc.in lib3mf.pc @ONLY)
+set(LIB3MF_CONFIG_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/lib3mf")
+configure_package_config_file(
+  cmake/lib3mfConfig.cmake.in
+  "${CMAKE_CURRENT_BINARY_DIR}/lib3mfConfig.cmake"
+  INSTALL_DESTINATION "${LIB3MF_CONFIG_INSTALL_DIR}"
+)
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/lib3mfConfigVersion.cmake"
+  VERSION "${PROJECT_VERSION}"
+  COMPATIBILITY SameMajorVersion
+)
+install(FILES ${CMAKE_BINARY_DIR}/lib3mf.pc DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+install(FILES
+  "${CMAKE_CURRENT_BINARY_DIR}/lib3mfConfig.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/lib3mfConfigVersion.cmake"
+  DESTINATION "${LIB3MF_CONFIG_INSTALL_DIR}"
+)
+install(TARGETS ${PROJECT_NAME}
+  EXPORT lib3mfTargets
+  ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+  RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+install(EXPORT lib3mfTargets
+  FILE lib3mfTargets.cmake
+  NAMESPACE lib3mf::
+  DESTINATION "${LIB3MF_CONFIG_INSTALL_DIR}"
+)
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR_AUTOGENERATED}/Bindings DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+endif()
+
+if (LIB3MF_BUILD_WASM)
+  set(LIB3MF_WASM_BINDINGS_SOURCE "${CMAKE_CURRENT_SOURCE_DIR_AUTOGENERATED}/Bindings/WASM/lib3mf_bindings.cpp")
+  if (NOT EXISTS "${LIB3MF_WASM_BINDINGS_SOURCE}")
+    message(FATAL_ERROR "Missing ACT-generated WASM bindings source: ${LIB3MF_WASM_BINDINGS_SOURCE}")
+  endif()
+
+  add_executable(lib3mf_wasm ${LIB3MF_WASM_BINDINGS_SOURCE})
+  target_include_directories(lib3mf_wasm PRIVATE ${CMAKE_CURRENT_SOURCE_DIR_AUTOGENERATED}/Bindings)
+  target_link_libraries(lib3mf_wasm PRIVATE ${PROJECT_NAME})
+  set_target_properties(lib3mf_wasm PROPERTIES OUTPUT_NAME "lib3mf" SUFFIX ".js")
+  target_link_options(lib3mf_wasm PRIVATE
+    "-sWASM=1"
+    "-sMODULARIZE=1"
+    "-sEXPORT_ES6=1"
+    "-sUSE_ES6_IMPORT_META=1"
+    "-sENVIRONMENT=node"
+    "-sINITIAL_MEMORY=1073741824"
+    "-sALLOW_MEMORY_GROWTH=1"
+    "-sMAXIMUM_MEMORY=4294967296"
+    "-sFORCE_FILESYSTEM=1"
+    "-sEXPORTED_RUNTIME_METHODS=['FS','ccall','cwrap']"
+    "--bind"
+    "-sEXCEPTION_CATCHING_ALLOWED=['*']"
+    "-sASSERTIONS=1"
+    "--no-entry"
+  )
+endif()
+
+#########################################################
+set(_lib3mf_tests_default ON)
+# Embedded: Tests/CMakeLists.txt calls enable_testing() and FORCE-sets LIBRESSL_*
+# cache entries, which would leak into the parent project. Opt in explicitly.
+if(NOT LIB3MF_IS_TOP_LEVEL OR EMSCRIPTEN OR LIB3MF_BUILD_WASM)
+  set(_lib3mf_tests_default OFF)
+endif()
+option(LIB3MF_TESTS "Switch whether the tests of lib3mf should be build" ${_lib3mf_tests_default})
+unset(_lib3mf_tests_default)
+message("LIB3MF_TESTS ... " ${LIB3MF_TESTS})
+
 if(LIB3MF_TESTS)
-	ADD_SUBDIRECTORY (googletest)
-	enable_testing()
-	SET(CTEST_SHARED "${PROJECT_NAME}_CTest_shared")
-	SET(gtest_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/googletest/googletest")
-	if(NMR_COM_NATIVE)
-		add_definitions ( -DNMR_COM_NATIVE)
-	endif()
-	add_definitions ( -DTESTFILESPATH="${CMAKE_CURRENT_SOURCE_DIR}/TestFiles")
-	include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
-	add_executable(${CTEST_SHARED} ${SRCS_UNITTEST})
-	target_include_directories(${CTEST_SHARED} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Include)
-	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
-	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
-	add_dependencies(${CTEST_SHARED} ${PROJECT_NAME})
-	target_link_libraries(${CTEST_SHARED} gtest gtest_main ${PROJECT_NAME})
-	add_test(${CTEST_SHARED} ${CTEST_SHARED})
+  enable_testing()
+  add_subdirectory(Tests)
 endif()
 
 #########################################################
-# testing the production + slice extension
-if(FALSE)
-	SET(CTEST_BATCH "${PROJECT_NAME}_BatchTests")
-	add_executable(${CTEST_BATCH} ${SRCS_BATCHTEST})
-	target_include_directories(${CTEST_BATCH} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Include)
-	add_dependencies(${CTEST_BATCH} ${PROJECT_NAME})
-	target_link_libraries(${CTEST_BATCH} ${PROJECT_NAME})
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+  IF(${CMAKE_VERSION} VERSION_LESS 3.6.3)
+    MESSAGE ("Note: You need to manually select a StartUp-project in Visual Studio.")
+  ELSE()
+    set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${STARTUPPROJECT})
+  ENDIF()
+endif()
+
+
+#########################################################
+if(LIB3MF_INSTALL)
+set(CPACK_PACKAGE_NAME "lib3mf")
+set(CPACK_PACKAGE_VENDOR "3MF Consortium")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "lib3mf - An implementation of the 3D Manufacturing Format file standard")
+set(CPACK_PACKAGE_VERSION "${LIB3MF_VERSION_MAJOR}.${LIB3MF_VERSION_MINOR}.${LIB3MF_VERSION_MICRO}")
+set(CPACK_PACKAGE_VERSION_MAJOR "${LIB3MF_VERSION_MAJOR}")
+set(CPACK_PACKAGE_VERSION_MINOR "${LIB3MF_VERSION_MINOR}")
+set(CPACK_PACKAGE_VERSION_PATCH "${LIB3MF_VERSION_MICRO}")
+set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
+set(CPACK_PACKAGE_CONTACT "lib3mf@3mf.io")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "3MF Consortium")
+set(LIB3MF_VERSION_FULL "${CPACK_PACKAGE_VERSION}")
+if (DEFINED LIB3MF_VERSION_PRERELEASE AND NOT "${LIB3MF_VERSION_PRERELEASE}" STREQUAL "")
+  set(LIB3MF_VERSION_FULL "${LIB3MF_VERSION_FULL}-${LIB3MF_VERSION_PRERELEASE}")
+endif()
+set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${LIB3MF_VERSION_FULL}-${CMAKE_SYSTEM_NAME}")
+set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${LIB3MF_VERSION_FULL}-Source")
+
+#########################################################
+include(CPack)
 endif()

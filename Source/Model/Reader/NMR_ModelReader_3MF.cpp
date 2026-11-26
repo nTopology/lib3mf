@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation (Original Author)
-Copyright (C) 2015 netfabb GmbH
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -33,11 +32,12 @@ NMR_ModelReader_3MF.cpp implements the Model Reader Class for
 --*/
 
 #include "Model/Reader/NMR_ModelReader_3MF.h"
-#include "Model/Reader/NMR_ModelReaderNode_Model.h"
+#include "Model/Reader/NMR_ModelReaderNode_ModelBase.h"
 #include "Model/Classes/NMR_ModelObject.h"
 #include "Model/Classes/NMR_ModelMeshObject.h"
 #include "Model/Classes/NMR_ModelConstants.h"
 #include "Model/Classes/NMR_ModelBuildItem.h"
+#include "Common/NMR_StringUtils.h"
 #include "Common/NMR_Exception.h"
 #include "Common/NMR_Exception_Windows.h"
 #include "Common/MeshImport/NMR_MeshImporter_STL.h"
@@ -47,6 +47,7 @@ NMR_ModelReader_3MF.cpp implements the Model Reader Class for
 #include "Model/Reader/Slice1507/NMR_ModelReader_Slice1507_SliceRefModel.h"
 #include "Model/Reader/NMR_ModelReader_InstructionElement.h"
 
+#include "Common/3MF_ProgressMonitor.h"
 
 namespace NMR {
 
@@ -56,17 +57,22 @@ namespace NMR {
 		// empty on purpose
 	}
 
-	void readProductionAttachmentModels(_In_ PModel pModel, _In_ PModelReaderWarnings pWarnings)
+	void readProductionAttachmentModels(_In_ PModel pModel, _In_ PModelWarnings pWarnings, _In_ PProgressMonitor pProgressMonitor)
 	{
 		nfUint32 prodAttCount = pModel->getProductionAttachmentCount();
 		for (nfInt32 i = prodAttCount-1; i >=0; i--)
 		{
+			if (pProgressMonitor) {
+				pProgressMonitor->SetProgressIdentifier(ProgressIdentifier::PROGRESS_READNONROOTMODELS);
+				pProgressMonitor->ReportProgressAndQueryCancelled(true);
+			}
+
 			PModelAttachment pProdAttachment = pModel->getProductionModelAttachment(i);
-			std::wstring path = pProdAttachment->getPathURI();
+			std::string sPath = pProdAttachment->getPathURI();
 			PImportStream pSubModelStream = pProdAttachment->getStream();
 
 			// Create XML Reader
-			PXmlReader pXMLReader = fnCreateXMLReaderInstance(pSubModelStream);
+			PXmlReader pXMLReader = fnCreateXMLReaderInstance(pSubModelStream, pProgressMonitor);
 
 			nfBool bHasModel = false;
 			eXmlReaderNodeType NodeType;
@@ -76,26 +82,28 @@ namespace NMR {
 					break;
 
 				// Get Node Name
-				LPCWSTR pwszLocalName = nullptr;
-				pXMLReader->GetLocalName(&pwszLocalName, nullptr);
-				if (!pwszLocalName)
+				LPCSTR pszLocalName = nullptr;
+				pXMLReader->GetLocalName(&pszLocalName, nullptr);
+				if (!pszLocalName)
 					throw CNMRException(NMR_ERROR_COULDNOTGETLOCALXMLNAME);
 
-				if (wcscmp(pwszLocalName, XML_3MF_ATTRIBUTE_PREFIX_XML) == 0) {
+				if (strcmp(pszLocalName, XML_3MF_ATTRIBUTE_PREFIX_XML) == 0) {
 					PModelReader_InstructionElement pXMLNode = std::make_shared<CModelReader_InstructionElement>(pWarnings);
 					pXMLNode->parseXML(pXMLReader.get());
 				}
 
 				// Compare with Model Node Name
-				if (wcscmp(pwszLocalName, XML_3MF_ELEMENT_MODEL) == 0) {
+				if (strcmp(pszLocalName, XML_3MF_ELEMENT_MODEL) == 0) {
 					if (bHasModel)
 						throw CNMRException(NMR_ERROR_DUPLICATEMODELNODE);
 					bHasModel = true;
 
-					PModelReaderNode_Model pXMLNode;
-					pModel->setCurPath(path.c_str());
-					pXMLNode = std::make_shared<CModelReaderNode_Model>(pModel.get(), pWarnings, path.c_str());
+					PModelReaderNode_ModelBase pXMLNode;
+					pModel->setCurrentPath(sPath);
+
+					pXMLNode = std::make_shared<CModelReaderNode_ModelBase>(pModel.get(), pWarnings, sPath, pProgressMonitor);
 					pXMLNode->setIgnoreBuild(true);
+					pXMLNode->setIgnoreMetaData(true);
 					pXMLNode->parseXML(pXMLReader.get());
 
 					if (!pXMLNode->getHasResources())
@@ -114,14 +122,21 @@ namespace NMR {
 
 		nfBool bHasModel = false;
 
+		monitor()->SetProgressIdentifier(ProgressIdentifier::PROGRESS_READSTREAM);
+
+		monitor()->SetProgressIdentifier(ProgressIdentifier::PROGRESS_EXTRACTOPCPACKAGE);
+		
 		// Extract Stream from Package
 		PImportStream pModelStream = extract3MFOPCPackage(pStream);
-
+		
 		// before reading the root model, read the other models in the file
-		readProductionAttachmentModels(m_pModel, m_pWarnings);
+		readProductionAttachmentModels(model(), warnings(), monitor());
+
+		monitor()->SetProgressIdentifier(ProgressIdentifier::PROGRESS_READROOTMODEL);
+		monitor()->ReportProgressAndQueryCancelled(true);
 
 		// Create XML Reader
-		PXmlReader pXMLReader = fnCreateXMLReaderInstance(pModelStream);
+		PXmlReader pXMLReader = fnCreateXMLReaderInstance(pModelStream, monitor());
 
 		eXmlReaderNodeType NodeType;
 		// Read all XML Root Nodes
@@ -130,23 +145,24 @@ namespace NMR {
 				break;
 
 			// Get Node Name
-			LPCWSTR pwszLocalName = nullptr;
-			pXMLReader->GetLocalName(&pwszLocalName, nullptr);
-			if (!pwszLocalName)
+			LPCSTR pszLocalName = nullptr;
+			pXMLReader->GetLocalName(&pszLocalName, nullptr);
+			if (!pszLocalName)
 				throw CNMRException(NMR_ERROR_COULDNOTGETLOCALXMLNAME);
 
-			if (wcscmp(pwszLocalName, XML_3MF_ATTRIBUTE_PREFIX_XML) == 0) {
-				PModelReader_InstructionElement pXMLNode = std::make_shared<CModelReader_InstructionElement>(m_pWarnings);
+			if (strcmp(pszLocalName, XML_3MF_ATTRIBUTE_PREFIX_XML) == 0) {
+				PModelReader_InstructionElement pXMLNode = std::make_shared<CModelReader_InstructionElement>(warnings());
 				pXMLNode->parseXML(pXMLReader.get());
 			}
 
 			// Compare with Model Node Name
-			if (wcscmp(pwszLocalName, XML_3MF_ELEMENT_MODEL) == 0) {
+			if (strcmp(pszLocalName, XML_3MF_ELEMENT_MODEL) == 0) {
 				if (bHasModel)
 					throw CNMRException(NMR_ERROR_DUPLICATEMODELNODE);
 				bHasModel = true;
-				m_pModel->setCurPath(m_pModel->rootPath().c_str());
-				PModelReaderNode_Model pXMLNode = std::make_shared<CModelReaderNode_Model>(m_pModel.get(), m_pWarnings, m_pModel->rootPath().c_str());
+
+				model()->setCurrentPath(model()->rootPath());
+				PModelReaderNode_ModelBase pXMLNode = std::make_shared<CModelReaderNode_ModelBase>(model().get(), warnings(), model()->rootPath(), monitor());
 				pXMLNode->parseXML(pXMLReader.get());
 
 				if (!pXMLNode->getHasResources())
@@ -157,21 +173,25 @@ namespace NMR {
 
 		}
 
-		m_pModel->removeReferencedSliceStackResources();
+		monitor()->SetProgressIdentifier(ProgressIdentifier::PROGRESS_CLEANUP);
+		monitor()->ReportProgressAndQueryCancelled(false);
 
 		// Release Memory of 3MF Package
 		release3MFOPCPackage();
 
 		if (!bHasModel)
 			throw CNMRException(NMR_ERROR_NOMODELNODE);
+
+		monitor()->SetProgressIdentifier(ProgressIdentifier::PROGRESS_DONE);
+		monitor()->ReportProgressAndQueryCancelled(false);
 	}
 
-	void CModelReader_3MF::addTextureAttachment(_In_ std::wstring sPath, _In_ PImportStream pStream)
+	void CModelReader_3MF::addTextureAttachment(_In_ std::string sPath, _In_ PImportStream pStream)
 	{
 		if (pStream.get() == nullptr)
 			throw CNMRException(NMR_ERROR_INVALIDPARAM);
 
-		m_pModel->addAttachment(sPath, PACKAGE_TEXTURE_RELATIONSHIP_TYPE, pStream);
+		model()->addAttachment(sPath, PACKAGE_TEXTURE_RELATIONSHIP_TYPE, pStream);
 	}
 
 }

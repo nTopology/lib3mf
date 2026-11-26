@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2017 Autodesk Inc.
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -37,7 +37,7 @@ NMR_ModelReaderNode_slice1507_Segment.h covers the slicestack of the private 3MF
 #include "Model/Classes/NMR_ModelComponent.h"
 #include "Model/Classes/NMR_ModelComponentsObject.h"
 #include "Model/Classes/NMR_ModelObject.h"
-#include "Common/MeshInformation/NMR_MeshInformation_Slices.h"
+#include "Model/Classes/NMR_ModelConstants_Slices.h"
 
 namespace NMR {
 	class CModelReaderNode_Slice1507_SliceStack : public CModelReaderNode {
@@ -47,18 +47,15 @@ namespace NMR {
 		nfFloat  m_BottomZ;
 		nfUint32 m_Id;
 
-		PSliceStack m_pSliceStack;
-		std::wstring m_sSlicePath;
-
-		bool m_bHasReadSliceRef;
-		bool m_bHasReadSlices;
+		PModelSliceStack m_pSliceStackResource;
+		std::string m_sSlicePath;
 	protected:
-		virtual void OnAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue);
-		virtual void OnNSChildElement(_In_z_ const nfWChar * pChildName, _In_z_ const nfWChar * pNameSpace, _In_ CXmlReader * pXMLReader);
+		virtual void OnAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue);
+		virtual void OnNSChildElement(_In_z_ const nfChar * pChildName, _In_z_ const nfChar * pNameSpace, _In_ CXmlReader * pXMLReader);
 
 	public:
 		CModelReaderNode_Slice1507_SliceStack() = delete;
-		CModelReaderNode_Slice1507_SliceStack(_In_ CModel *pModel, _In_ PModelReaderWarnings pWarnings, _In_ const nfWChar* sSlicePath);
+		CModelReaderNode_Slice1507_SliceStack(_In_ CModel *pModel, _In_ PModelWarnings pWarnings, _In_ PProgressMonitor pProgressMonitor, _In_ const std::string sSlicePath);
 
 		virtual void parseXML(_In_ CXmlReader * pXMLReader);
 	};

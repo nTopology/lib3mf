@@ -1,7 +1,6 @@
 /*++
 
-Copyright (C) 2015 Microsoft Corporation (Original Author)
-Copyright (C) 2015 netfabb GmbH
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -35,34 +34,33 @@ A model reader reads in a model file and generates an in-memory representation o
 #ifndef __NMR_MODELREADER
 #define __NMR_MODELREADER
 
-#include "Model/Classes/NMR_Model.h" 
-#include "Model/Reader/NMR_ModelReaderWarnings.h" 
+#include "Model/Classes/NMR_ModelContext.h"
+#include "Common/NMR_ModelWarnings.h" 
 #include "Common/MeshImport/NMR_MeshImporter.h" 
 
 #include <list>
+#include <set>
 
 namespace NMR {
 
-	class CModelReader {
+	class CModelReader : public CModelContext {
 	protected:
-		PModel m_pModel;
 		PImportStream m_pPrintTicketStream;
-		std::wstring m_sPrintTicketContentType;
-		std::set<std::wstring> m_RelationsToRead;
+		std::string m_sPrintTicketContentType;
+		std::set<std::string> m_RelationsToRead;
 
-		PModelReaderWarnings m_pWarnings;
 
 		void readFromMeshImporter(_In_ CMeshImporter * pImporter);
 	public:
 		CModelReader() = delete;
 		CModelReader(_In_ PModel pModel);
+		virtual ~CModelReader() = default;
 
 		virtual void readStream(_In_ PImportStream pStream) = 0;
-		PImportStream retrievePrintTicket(_Out_ std::wstring & sContentType);
-		PModelReaderWarnings getWarnings ();
+		PImportStream retrievePrintTicket(_Out_ std::string & sContentType);
 
-		void addRelationToRead(_In_ std::wstring sRelationShipType);
-		void removeRelationToRead(_In_ std::wstring sRelationShipType);
+		void addRelationToRead(_In_ std::string sRelationShipType);
+		void removeRelationToRead(_In_ std::string sRelationShipType);
 	};
 
 	typedef std::shared_ptr <CModelReader> PModelReader;

@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -33,7 +33,7 @@ This is a derived class for Importing the binary STL and color STL Mesh Format.
 
 #include "Common/MeshImport/NMR_MeshImporter_STL.h" 
 #include "Common/MeshInformation/NMR_MeshInformation.h" 
-#include "Common/MeshInformation/NMR_MeshInformation_NodeColors.h" 
+#include "Common/MeshInformation/NMR_MeshInformation_Properties.h" 
 #include "Common/Math/NMR_VectorTree.h" 
 #include "Common/Math/NMR_Matrix.h" 
 #include "Common/NMR_Exception.h" 
@@ -113,33 +113,41 @@ namespace NMR {
 		if (!pStream)
 			throw CNMRException(NMR_ERROR_NOIMPORTSTREAM);
 
-		CMeshInformationHandler * pMeshInformationHandler = NULL;
-		PMeshInformation_NodeColors pMeshInformation = NULL;
-		if (m_bImportColors) {
-			pMeshInformation = std::make_shared<CMeshInformation_NodeColors>();
-			pMeshInformationHandler->addInformation(pMeshInformation);
-		}
+		// TODO: handle colors
+		//CMeshInformationHandler * pMeshInformationHandler = pMesh->createMeshInformationHandler();
+		//CMeshInformation * pInformation = pMeshInformationHandler->getInformationByType(0, emiProperties);
+		//CMeshInformation_Properties * pProperties = nullptr;
+
+		//if (!pProperties) {
+		//	PMeshInformation_Properties pNewMeshInformation = std::make_shared<CMeshInformation_Properties>(pMesh->getFaceCount());
+		//	pMeshInformationHandler->addInformation(pNewMeshInformation);
+
+		//	pProperties = pNewMeshInformation.get();
+		//}
 
 		std::array<nfByte, 80> aSTLHeader;
 		nfUint32 nFaceCount = 0;
-		nfUint32 nGlobalColor = 0xffffffff;
+		// nfUint32 nGlobalColor = 0xffffffff;
 
-		pStream->readBuffer(&aSTLHeader[0], 80, true);
-		pStream->readBuffer((nfByte*)&nFaceCount, sizeof(nFaceCount), true);
+		pStream->readIntoBuffer(&aSTLHeader[0], 80, true);
+		pStream->readIntoBuffer((nfByte*)&nFaceCount, sizeof(nFaceCount), true);
+		if (isBigEndian()) {
+			nFaceCount = swapBytes(nFaceCount);
+		}
 
 		if (nFaceCount > NMR_MESH_MAXFACECOUNT)
 			throw CNMRException(NMR_ERROR_INVALIDFACECOUNT);
 
-		std::string sHeaderString(std::begin(aSTLHeader), std::end(aSTLHeader));
-		std::size_t nFound = sHeaderString.find("COLOR=");
-		if (nFound != std::string::npos) {
-			if (nFound <= 76) {
-				nGlobalColor = ((nfUint32)aSTLHeader[nFound + 6]) + (((nfUint32)aSTLHeader[nFound + 7]) << 8) + (((nfUint32)aSTLHeader[nFound + 8]) << 16) +
-					(((nfUint32)aSTLHeader[nFound + 9]) << 24);
-			}
-		}
+		// std::string sHeaderString(std::begin(aSTLHeader), std::end(aSTLHeader));
+		// std::size_t nFound = sHeaderString.find("COLOR=");
+		// if (nFound != std::string::npos) {
+		// 	if (nFound <= 76) {
+		// 		nGlobalColor = ((nfUint32)aSTLHeader[nFound + 6]) + (((nfUint32)aSTLHeader[nFound + 7]) << 8) + (((nfUint32)aSTLHeader[nFound + 8]) << 16) +
+		// 			(((nfUint32)aSTLHeader[nFound + 9]) << 24);
+		// 	}
+		// }
 
-		nfUint32 nIdx, j, k, nNodeIdx;
+		nfUint32 nNodeIdx;
 		MESHNODE * pNodes[3];
 		MESHFORMAT_STL_FACET Facet;
 		CVectorTree VectorTree;
@@ -147,20 +155,23 @@ namespace NMR {
 
 		VectorTree.setUnits(m_fUnits);
 
-		for (nIdx = 0; nIdx < nFaceCount; nIdx++) {
-			pStream->readBuffer((nfByte*)&Facet, sizeof(Facet), true);
+		for (nfUint32 nIdx = 0; nIdx < nFaceCount; nIdx++) {
+			pStream->readIntoBuffer((nfByte*)&Facet, sizeof(Facet), true);
+			if (isBigEndian()) {
+				Facet.swapByteOrder();
+			}
 
 			// Check, if Coordinates are in Valid Space
 			bIsValid = true;
-			for (j = 0; j < 3; j++)
-			for (k = 0; k < 3; k++)
-				bIsValid &= (fabs(Facet.m_vertieces[j].m_fields[k]) < NMR_MESH_MAXCOORDINATE);
+			for (nfUint32 j = 0; j < 3; j++)
+				for (nfUint32 k = 0; k < 3; k++)
+					bIsValid &= (fabs(Facet.m_vertices[j].m_fields[k]) < NMR_MESH_MAXCOORDINATE);
 
 			// Identify Nodes via Tree
 			if (bIsValid) {
 
-				for (j = 0; j < 3; j++) {
-					NVEC3 vPosition = Facet.m_vertieces[j];
+				for (nfUint32 j = 0; j < 3; j++) {
+					NVEC3 vPosition = Facet.m_vertices[j];
 					if (pmMatrix)
 						vPosition = fnMATRIX3_apply(*pmMatrix, vPosition);
 
@@ -182,24 +193,18 @@ namespace NMR {
 				throw CNMRException(NMR_ERROR_INVALIDCOORDINATES);
 
 			if (bIsValid) {
-				MESHFACE * pFace = pMesh->addFace(pNodes[0], pNodes[1], pNodes[2]);
-				if (pMeshInformation) {
-					nfUint32 nRed = (nfUint32) ((nfFloat) (Facet.m_attribute & 0x1f) / (255.0f / 31.0f));
-					nfUint32 nGreen = (nfUint32)((nfFloat)((Facet.m_attribute >> 5) & 0x1f) / (255.0f / 31.0f));
-					nfUint32 nBlue = (nfUint32)((nfFloat)((Facet.m_attribute >> 10) & 0x1f) / (255.0f / 31.0f));;
+				pMesh->addFace(pNodes[0], pNodes[1], pNodes[2]);
+				// MESHFACE * pFace = pMesh->addFace(pNodes[0], pNodes[1], pNodes[2]);
+				//if (pProperties) {
+				//	nfUint32 nRed = (nfUint32) ((nfFloat) (Facet.m_attribute & 0x1f) / (255.0f / 31.0f));
+				//	nfUint32 nGreen = (nfUint32)((nfFloat)((Facet.m_attribute >> 5) & 0x1f) / (255.0f / 31.0f));
+				//	nfUint32 nBlue = (nfUint32)((nfFloat)((Facet.m_attribute >> 10) & 0x1f) / (255.0f / 31.0f));
 
-					MESHINFORMATION_NODECOLOR * pNodeColorInfo = (MESHINFORMATION_NODECOLOR*)pMeshInformation->getFaceData(pFace->m_index);
-					if ((Facet.m_attribute & 0x8000) == 0) {
-						pNodeColorInfo->m_cColors[0] = nRed + (nGreen << 8) + (nBlue << 16);
-					} else {
-						pNodeColorInfo->m_cColors[0] = nGlobalColor;
-					}
-
-					pNodeColorInfo->m_cColors[1] = pNodeColorInfo->m_cColors[0];
-					pNodeColorInfo->m_cColors[2] = pNodeColorInfo->m_cColors[0];
-				}
+				//	// MESHINFORMATION_PROPERTIES * pFaceData = (NMR::MESHINFORMATION_PROPERTIES*)pProperties->getFaceData(pFace->m_index);
+				//}
 			}
 		}
+
 	}
 
 }

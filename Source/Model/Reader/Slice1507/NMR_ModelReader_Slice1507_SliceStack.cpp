@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2017 Autodesk Inc.
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -31,89 +31,76 @@ Abstract:
 #include "Model/Reader/Slice1507/NMR_ModelReader_Slice1507_SliceStack.h"
 #include "Model/Reader/Slice1507/NMR_ModelReader_Slice1507_SliceRef.h"
 #include "Model/Reader/Slice1507/NMR_ModelReader_Slice1507_Slice.h"
-
-#include "Model/COM/NMR_COMInterface_ModelReader.h"
-#include "Model/Classes/NMR_ModelAttachment.h"
-#ifdef NMR_COM_NATIVE
-#include "Common/Platform/NMR_COM_Native.h"
-#include "Model/Reader/NMR_ModelReader_3MF_OPC.h"
-#else
-#include "Common/Platform/NMR_COM_Emulation.h"
-#include "Model/Reader/NMR_ModelReader_3MF_Native.h"
-#endif
-
 #include "Common/NMR_StringUtils.h"
-
 #include "Model/Classes/NMR_ModelConstants.h"
 
 namespace NMR {
-	void CModelReaderNode_Slice1507_SliceStack::OnAttribute(_In_z_ const nfWChar * pAttributeName, _In_z_ const nfWChar * pAttributeValue) {
-		if (wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_SLICESTACKZBOTTOM) == 0) {
-			m_BottomZ = fnWStringToFloat(pAttributeValue);
+	void CModelReaderNode_Slice1507_SliceStack::OnAttribute(_In_z_ const nfChar * pAttributeName, _In_z_ const nfChar * pAttributeValue) {
+		if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_SLICESTACKZBOTTOM) == 0) {
+			m_BottomZ = fnStringToFloat(pAttributeValue);
 		}
-		else if (wcscmp(pAttributeName, XML_3MF_ATTRIBUTE_SLICESTACKID) == 0) {
-			m_Id = fnWStringToUint32(pAttributeValue);
+		else if (strcmp(pAttributeName, XML_3MF_ATTRIBUTE_SLICESTACKID) == 0) {
+			m_Id = fnStringToUint32(pAttributeValue);
 		}
 		else
 			throw CNMRException(NMR_ERROR_SLICE_INVALIDATTRIBUTE);
 	}
 
 	void CModelReaderNode_Slice1507_SliceStack::OnNSChildElement(
-		_In_z_ const nfWChar * pChildName, _In_z_ const nfWChar * pNameSpace, _In_ CXmlReader * pXMLReader)
+		_In_z_ const nfChar * pChildName, _In_z_ const nfChar * pNameSpace, _In_ CXmlReader * pXMLReader)
 	{
-		if (wcscmp(pChildName, XML_3MF_ELEMENT_SLICE) == 0) {
-			if (m_bHasReadSliceRef)
+		if (strcmp(pChildName, XML_3MF_ELEMENT_SLICE) == 0) {
+			if (!m_pSliceStackResource->AllowsGeometry())
 				throw CNMRException(NMR_ERROR_SLICESTACK_SLICESANDSLICEREF);
-			m_bHasReadSlices = true;
 			PModelReaderNode_Slices1507_Slice pXMLNode = nullptr;
-			pXMLNode = std::make_shared<CModelReaderNode_Slices1507_Slice>(m_pSliceStack.get(), m_pWarnings);
+
+			if (m_pSliceStackResource->getSliceCount() % PROGRESS_READSLICESUPDATE == PROGRESS_READSLICESUPDATE - 1 ) {
+				m_pProgressMonitor->SetProgressIdentifier(ProgressIdentifier::PROGRESS_READSLICES);
+				m_pProgressMonitor->ReportProgressAndQueryCancelled(true);
+			}
+
+			pXMLNode = std::make_shared<CModelReaderNode_Slices1507_Slice>(m_pSliceStackResource.get(), m_pWarnings);
 			pXMLNode->parseXML(pXMLReader);
 		}
-		else if (wcscmp(pChildName, XML_3MF_ELEMENT_SLICEREFRESOURCE) == 0) {
-			if (m_bHasReadSlices)
+		else if (strcmp(pChildName, XML_3MF_ELEMENT_SLICEREFRESOURCE) == 0) {
+			if (!m_pSliceStackResource->AllowsReferences())
 				throw CNMRException(NMR_ERROR_SLICESTACK_SLICESANDSLICEREF);
-			m_bHasReadSliceRef = true;
 			PModelReaderNode_Slice1507_SliceRef pXmlNode = std::make_shared<CModelReaderNode_Slice1507_SliceRef>(m_pWarnings);
 			pXmlNode->parseXML(pXMLReader);
-
-			// get slice resource from model
-			std::wstring sPath = pXmlNode->Path();
-
-			// must reference a different part
-			if (sPath == m_pModel->curPath())
-				throw CNMRException(NMR_ERROR_INVALID_SLICEPATH);
 			
-			PModelResource pResource = m_pModel->findResource(pXmlNode->Path(), pXmlNode->SliceStackId());
-			CModelSliceStackResource* pSliceStackResource = dynamic_cast<CModelSliceStackResource*>(pResource.get());
+			std::string path = pXmlNode->Path();
+			if (path.empty()) {
+				path = m_pModel->currentPath();
+			}
+			PModelResource pResource = m_pModel->findResource(path, pXmlNode->SliceStackId());
+			PModelSliceStack pSliceStackResource = std::dynamic_pointer_cast<CModelSliceStack>(pResource);
 			if (!pSliceStackResource)
 				throw CNMRException(NMR_ERROR_SLICESTACKRESOURCE_NOT_FOUND);
-			// can't have slice refs reference slicerefs
-			if (pSliceStackResource->getSliceStack()->usesSliceRef())
+			if (m_pSliceStackResource->OwnPath() != m_pModel->rootPath() )
 				throw CNMRException(NMR_ERROR_SLICEREFSTOODEEP);
-			pSliceStackResource->NumSliceRefsToMe()++;
+
 			try {
-				m_pSliceStack->mergeSliceStack(pSliceStackResource->getSliceStack());
-			}
-			catch (CNMRException &e) {
-				if (e.getErrorCode() == NMR_ERROR_SLICES_Z_NOTINCREASING) {
-					m_pWarnings->addException(e, mrwInvalidMandatoryValue);
+				m_pSliceStackResource->AddSliceRef(pSliceStackResource, true);
+			} catch (const CNMRException& e)
+			{
+				if (e.getErrorCode() == NMR_ERROR_SLICES_REFS_Z_NOTINCREASING)
+				{
+					getWarnings()->addException(e, mrwInvalidMandatoryValue);
+					m_pSliceStackResource->AddSliceRef(pSliceStackResource, false);
 				}
 				else
-					throw e;
+					throw;
 			}
-			m_pSliceStack->setUsesSliceRef(true);
 		}
 	}
 
 	CModelReaderNode_Slice1507_SliceStack::CModelReaderNode_Slice1507_SliceStack(
-		_In_ CModel * pModel, _In_ PModelReaderWarnings pWarnings, _In_ const nfWChar* sSlicePath)
-		: CModelReaderNode(pWarnings)
+		_In_ CModel * pModel, _In_ PModelWarnings pWarnings,
+		_In_ PProgressMonitor pProgressMonitor,_In_ const std::string sSlicePath)
+		: CModelReaderNode(pWarnings, pProgressMonitor)
 	{
 		m_sSlicePath = sSlicePath;
-		m_pSliceStack = std::make_shared<CSliceStack>();
 		m_pModel = pModel;
-		m_bHasReadSliceRef = false;
-		m_bHasReadSlices = false;
 	}
 
 	void CModelReaderNode_Slice1507_SliceStack::parseXML(_In_ CXmlReader * pXMLReader)
@@ -123,12 +110,14 @@ namespace NMR {
 
 		// Parse attribute
 		parseAttributes(pXMLReader);
-		m_pSliceStack->setBottomZ(m_BottomZ);
+
+		m_pSliceStackResource = std::make_shared<CModelSliceStack>(m_Id, m_pModel, m_BottomZ);
 
 		// Parse Content
 		parseContent(pXMLReader);
 
-		PModelSliceStackResource pSliceStackResource = std::make_shared<CModelSliceStackResource>(m_Id, m_pModel, m_pSliceStack);
-		m_pModel->addResource(pSliceStackResource);
+		m_pSliceStackResource->SetOwnPath(m_sSlicePath);
+
+		m_pModel->addResource(m_pSliceStackResource);
 	}
 }

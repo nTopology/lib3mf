@@ -1,6 +1,6 @@
 /*++
 
-Copyright (C) 2015 netfabb GmbH (Original Author)
+Copyright (C) 2019 3MF Consortium
 
 All rights reserved.
 
@@ -33,19 +33,19 @@ NMR_Time.cpp implements platform dependent time functions
 #include "Common/Platform/NMR_Time.h"
 #include "Common/NMR_Exception.h"
 
-#ifdef _WIN32
+// <time.h> must be included on every platform: newer libc++ (emscripten 7.x)
+// no longer provides ::time transitively through other headers.
 #include <time.h>
-#endif // _WIN32
 
 namespace NMR {
 
 	nfTimeStamp fnGetUnixTime()
 	{
-    #ifdef _WIN32
+    #if defined(_WIN32) && !defined(__MINGW32__)
 		return _time64(nullptr);
     #else
-        return time(nullptr);
-    #endif // _WIN32
+        	return time(nullptr);
+    #endif
 	}
 
 }
