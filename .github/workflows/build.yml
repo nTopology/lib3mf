@@ -1,7 +1,9 @@
 on: [push, pull_request]
 env:
   # Set this to "on" to enable integration tests and "off" to skip integration tests
-  RUN_INTEGRATION_TESTS: "on"
+  # nTopology fork: off, because the 3MF Consortium test suite download needs the THREEMF_TEST_SUITE_DOWNLOAD_USER/TOKEN
+  # secrets, which this fork does not have (the download fails with 401). Upstream lib3mf runs these tests on its releases.
+  RUN_INTEGRATION_TESTS: "off"
 name: Build
 jobs:
   set-lib3mf-version:
