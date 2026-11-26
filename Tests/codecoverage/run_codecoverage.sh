@@ -1,9 +1,9 @@
 cd build
-lcov --capture --initial --directory . --output-file Test_CPP_Bindings_base.info --ignore-errors gcov,inconsistent
+lcov --capture --initial --directory . --output-file Test_CPP_Bindings_base.info --ignore-errors gcov,inconsistent,format
 ./Test_CPP_Bindings
 
-lcov --directory . --capture --output-file Test_CPP_Bindings_run.info --ignore-errors gcov,inconsistent
-lcov --add-tracefile Test_CPP_Bindings_base.info --add-tracefile Test_CPP_Bindings_run.info --output-file Test_CPP_Bindings.info --ignore-errors gcov,inconsistent
+lcov --directory . --capture --output-file Test_CPP_Bindings_run.info --ignore-errors gcov,inconsistent,format
+lcov --add-tracefile Test_CPP_Bindings_base.info --add-tracefile Test_CPP_Bindings_run.info --output-file Test_CPP_Bindings.info --ignore-errors gcov,inconsistent,format
 
 TARGETDIR=`dirname \`pwd\``
 
